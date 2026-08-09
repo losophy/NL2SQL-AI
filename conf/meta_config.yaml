@@ -1,91 +1,85 @@
 tables:
-  - name: dim_region
+  - name: dim_server
     role: dim
-    description: 地区维度表，用于描述订单发生的地理区域信息。
+    description: 游戏服务器维度表，描述充值行为发生的服务器、渠道服及所属大区信息。
     columns:
-      - name: region_id
+      - name: server_id
         role: primary_key
-        description: 地区唯一标识。
-        alias: [地区ID, 区域ID]
+        description: 服务器唯一标识。
+        alias: [服务器ID, 区服ID, 服务区ID]
         sync: false
 
-      - name: province
+      - name: server_name
         role: dimension
-        description: 订单所属的省份名称。
-        alias: [省份, 省, 所在省份]
+        description: 服务器（区服）名称，如华东1区、华南2区。
+        alias: [服务器, 区服, 服务器名, 服务器名称, 区服名, 游戏区]
         sync: true
 
-      - name: region_name
+      - name: channel_type
         role: dimension
-        description: 订单所属的大区名称，如华东、华南等。
-        alias: [地区, 区域, 大区]
+        description: 充值渠道类型，如官方渠道、iOS渠道、华为渠道、安卓应用宝等。
+        alias: [渠道, 渠道类型, 渠道服, 分发渠道, 平台]
         sync: true
 
-      - name: country
+      - name: region
         role: dimension
-        description: 地区所属国家名称。
-        alias: [国家, 国家名称]
+        description: 服务器所属地域大区，如华东、华南、华北、西南。
+        alias: [大区, 地区, 地域, 服务器大区, 服务器集群, 地域集群]
         sync: true
 
-  - name: dim_customer
+  - name: dim_player
     role: dim
-    description: 客户维度表，描述下单客户的基本属性。
+    description: 玩家维度表，描述充值玩家的基本属性和会员等级。
     columns:
-      - name: customer_id
+      - name: player_id
         role: primary_key
-        description: 客户唯一标识。
-        alias: [客户ID, 用户ID]
+        description: 玩家唯一标识。
+        alias: [玩家ID, 用户ID, 账号ID]
         sync: false
 
-      - name: customer_name
+      - name: player_name
         role: dimension
-        description: 客户名称。
-        alias: [客户名称, 用户名称]
+        description: 玩家昵称或角色名称。
+        alias: [玩家名, 昵称, 玩家名称, 角色名]
         sync: true
 
       - name: gender
         role: dimension
-        description: 客户性别。
+        description: 玩家性别。
         alias: [性别]
         sync: true
 
-      - name: member_level
+      - name: vip_level
         role: dimension
-        description: 客户会员等级。
-        alias: [会员等级, 用户等级]
+        description: 玩家VIP等级，等级越高代表累计充值和活跃度越高。
+        alias: [VIP等级, 会员等级, 心悦会员等级, 心悦等级, 玩家等级, VIP]
         sync: true
 
-  - name: dim_product
+  - name: dim_item
     role: dim
-    description: 商品维度表，描述商品的基本属性信息。
+    description: 游戏道具维度表，描述皮肤、礼包、消耗品、通行证等道具的基本属性。
     columns:
-      - name: product_id
+      - name: item_id
         role: primary_key
-        description: 商品唯一标识。
-        alias: [商品ID, 产品ID]
+        description: 道具唯一标识。
+        alias: [道具ID, 物品ID, 商品ID]
         sync: false
 
-      - name: product_name
+      - name: item_name
         role: dimension
-        description: 商品名称。
-        alias: [商品名称, 产品名称]
+        description: 道具名称，如某皮肤、某礼包、某通行证等。
+        alias: [道具名, 道具名称, 物品名, 商品名, 皮肤名]
         sync: true
 
-      - name: category
+      - name: item_category
         role: dimension
-        description: 商品所属品类。
-        alias: [商品类别, 品类, 分类]
-        sync: true
-
-      - name: brand
-        role: dimension
-        description: 商品品牌名称。
-        alias: [品牌, 品牌名称]
+        description: 道具所属品类，如皮肤、礼包、消耗品、通行证。
+        alias: [道具品类, 品类, 道具类型, 物品类型, 分类]
         sync: true
 
   - name: dim_date
     role: dim
-    description: 时间维度表，用于多时间粒度分析。
+    description: 时间维度表，用于按年、季度、月、日多粒度分析充值数据。
     columns:
       - name: date_id
         role: primary_key
@@ -117,60 +111,65 @@ tables:
         alias: [日, 天]
         sync: false
 
-  - name: fact_order
+  - name: fact_recharge
     role: fact
-    description: 订单事实表，记录订单数量和金额等核心指标。
+    description: 充值流水事实表，记录每笔充值的玩家、服务器、道具、时间、件数和金额等核心指标。
     columns:
-      - name: order_id
+      - name: recharge_id
         role: primary_key
-        description: 订单唯一标识。
-        alias: [订单ID]
+        description: 充值流水唯一标识。
+        alias: [充值单号, 充值流水号, 流水ID, 订单ID]
         sync: false
 
-      - name: customer_id
+      - name: player_id
         role: foreign_key
-        description: 关联客户维度的外键。
-        alias: [客户ID, 用户ID]
+        description: 关联玩家维度的外键。
+        alias: [玩家ID, 用户ID, 账号ID]
         sync: false
 
-      - name: product_id
+      - name: server_id
         role: foreign_key
-        description: 关联商品维度的外键。
-        alias: [商品ID, 产品ID]
+        description: 关联服务器维度的外键。
+        alias: [服务器ID, 区服ID]
+        sync: false
+
+      - name: item_id
+        role: foreign_key
+        description: 关联道具维度的外键。
+        alias: [道具ID, 物品ID, 商品ID]
         sync: false
 
       - name: date_id
         role: foreign_key
-        description: 关联时间维度的外键。
-        alias: [日期, 下单日期]
+        description: 关联时间维度的外键，即充值发生日期。
+        alias: [日期, 充值日期, 购买日期, 支付日期]
         sync: false
 
-      - name: region_id
-        role: foreign_key
-        description: 关联地区维度的外键。
-        alias: [地区ID, 区域ID]
-        sync: false
-
-      - name: order_quantity
+      - name: quantity
         role: measure
-        description: 订单中商品的购买数量。
-        alias: [销量, 购买数量, 件数]
+        description: 单笔充值购买的某道具件数。
+        alias: [销售件数, 购买数量, 件数, 销量, 数量]
         sync: false
 
-      - name: order_amount
+      - name: recharge_amount
         role: measure
-        description: 订单金额。
-        alias: [销售额, 订单金额, 收入]
+        description: 单笔充值的金额（流水金额）。
+        alias: [流水, 充值金额, 付费金额, 销售额, 金额, 收入, GMV]
         sync: false
 
 metrics:
-  - name: GMV
-    description: 全称Gross Merchandise Value，表示所有订单的成交金额总和。
+  - name: 充值流水
+    description: 所有充值流水的充值金额总和，即游戏运营口径的总收入或总流水（GMV）。
     relevant_columns:
-      - fact_order.order_amount
-    alias: [成交总额, 订单总额]
-  - name: AOV
-    description: 全称Average Order Value，表示所有订单的成交金额平均值。
+      - fact_recharge.recharge_amount
+    alias: [总流水, 流水总额, GMV, 充值总额, 总收入, 总流水]
+  - name: 付费笔数
+    description: 所有充值流水的笔数（充值次数），一笔流水记为一次付费。
     relevant_columns:
-      - fact_order.order_quantity
-    alias: [平均单价, 平均订单金额]
+      - fact_recharge.recharge_id
+    alias: [付费笔数, 充值次数, 充值笔数, 交易笔数, 流水笔数]
+  - name: 销售件数
+    description: 所有充值流水购买的件数总和。
+    relevant_columns:
+      - fact_recharge.quantity
+    alias: [销售件数, 总件数, 销量, 售卖件数, 购买总数量]

@@ -143,14 +143,14 @@ export function StepRail({ steps = [] }: { steps?: StepState[] }) {
                 refX="6"
                 refY="4"
               >
-                <path d="M0 0 L8 4 L0 8 Z" fill="rgba(32,32,29,0.58)" />
+                <path d="M0 0 L8 4 L0 8 Z" fill="rgba(44,58,49,0.58)" />
               </marker>
             </defs>
             {connectors.map((path) => (
               <path
                 key={path}
                 d={path}
-                stroke="rgba(32,32,29,0.5)"
+                stroke="rgba(44,58,49,0.5)"
                 strokeWidth="1.5"
                 markerEnd="url(#flow-arrow)"
               />
@@ -160,7 +160,7 @@ export function StepRail({ steps = [] }: { steps?: StepState[] }) {
                 key={label.text}
                 x={label.x}
                 y={label.y}
-                fill="rgba(32,32,29,0.62)"
+                fill="rgba(44,58,49,0.62)"
                 fontSize="13"
                 fontWeight="600"
               >

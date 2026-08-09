@@ -35,10 +35,10 @@ embedding:
 
 es:
   host: localhost
-  port: 9200
+  port: 9400
   index_name: data_agent
 
 llm:
-  model_name: Pro/zai-org/GLM-5.1
+  model_name: glm-5.1
   api_key: ${oc.env:LLM_API_KEY}
-  base_url: https://api.siliconflow.cn/v1
+  base_url: https://ws-j3tmps32rwyxqb9l.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
