@@ -73,7 +73,7 @@
 | 元数据知识库构建 | 抽取教学数仓中的表、字段、指标和字段取值，写入结构化库、向量库和全文索引 | `MySQL` / `Qdrant` / `Elasticsearch` / `TEI` |
 | 自然语言问数     | 基于用户问题完成召回、上下文整理、SQL 生成校验执行，并把过程流式返回前端 | `LangGraph` / `FastAPI` / `SSE` / `React`    |
 
-![电商问数查询结果页：LangGraph 执行流程、SQL 校验执行和查询结果表格](docs/images/shopkeeper-agent-query-result.jpg)
+![电商问数查询结果页：LangGraph 执行流程、SQL 校验执行和查询结果表格](docs/images/NL2SQL-Agent-query-result.png)
 
 ## 🛠️ 项目技术栈
 
