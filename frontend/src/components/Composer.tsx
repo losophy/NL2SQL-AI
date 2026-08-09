@@ -42,7 +42,7 @@ export function Composer({
             onSubmit={submit}
             className="border-t border-ink/10 bg-parchment/80 px-4 py-4 backdrop-blur"
         >
-            <div className="mx-auto flex max-w-5xl items-end gap-3 border border-ink/15 bg-white/75 p-2 shadow-panel">
+            <div className="mx-auto flex max-w-5xl items-end gap-3 border border-ink/15 bg-[#f4faf2]/95 p-2 shadow-panel">
                 <div className="hidden h-11 w-11 shrink-0 place-items-center bg-moss/10 text-moss sm:grid">
                     <WandSparkles className="h-5 w-5" aria-hidden="true" />
                 </div>

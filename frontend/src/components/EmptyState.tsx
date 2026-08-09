@@ -32,7 +32,7 @@ export function EmptyState({ examples, onUseExample }: EmptyStateProps) {
         {highlights.map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="border border-ink/10 bg-white/55 px-4 py-4">
+            <div key={item.label} className="border border-ink/10 bg-[#f1f8f0]/60 px-4 py-4">
               <Icon className="mb-5 h-5 w-5 text-brass" aria-hidden="true" />
               <div className="text-sm font-semibold text-ink">{item.label}</div>
             </div>
@@ -46,7 +46,7 @@ export function EmptyState({ examples, onUseExample }: EmptyStateProps) {
             key={example}
             type="button"
             onClick={() => onUseExample(example)}
-            className="min-h-20 border border-ink/10 bg-[#fffaf1]/75 px-4 py-4 text-left text-[15px] leading-6 text-ink transition hover:-translate-y-0.5 hover:border-moss/35 hover:bg-white focus:outline-none focus:ring-2 focus:ring-moss/35"
+            className="min-h-20 border border-ink/10 bg-[#f3f9f2]/85 px-4 py-4 text-left text-[15px] leading-6 text-ink transition hover:-translate-y-0.5 hover:border-moss/50 hover:bg-[#fafcf8] focus:outline-none focus:ring-2 focus:ring-moss/40"
           >
             {example}
           </button>
