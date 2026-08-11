@@ -39,6 +39,6 @@ es:
   index_name: data_agent
 
 llm:
-  model_name: glm-5.1
+  model_name: ${oc.env:LLM_MODEL_NAME}
   api_key: ${oc.env:LLM_API_KEY}
-  base_url: https://ws-j3tmps32rwyxqb9l.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
+  base_url: ${oc.env:LLM_BASE_URL}

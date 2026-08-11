@@ -134,22 +134,24 @@ uv sync
 cp .env.example .env
 ```
 
-把 `.env` 中的 `LLM_API_KEY` 替换成真实密钥：
+把 `.env` 中的 `LLM_API_KEY` 替换成真实密钥，并按需调整 `LLM_MODEL_NAME`（模型名）与 `LLM_BASE_URL`（接口地址）：
 
 ```bash
+LLM_MODEL_NAME=glm-5.1
 LLM_API_KEY=your_real_api_key
+LLM_BASE_URL=https://api.siliconflow.cn/v1
 ```
 
 默认配置使用兼容 OpenAI 接口的硅基流动服务：
 
 ```yaml
 llm:
-    model_name: Pro/zai-org/GLM-5.1
+    model_name: ${oc.env:LLM_MODEL_NAME}
     api_key: ${oc.env:LLM_API_KEY}
-    base_url: https://api.siliconflow.cn/v1
+    base_url: ${oc.env:LLM_BASE_URL}
 ```
 
-如需使用其他兼容 OpenAI API 的模型平台，修改 [conf/app_config.yaml](conf/app_config.yaml) 中的 `model_name` 和 `base_url`。
+如需使用其他兼容 OpenAI API 的模型平台，在 `.env` 中修改 `LLM_MODEL_NAME` 和 `LLM_BASE_URL` 即可。
 
 ### 5. 准备 Embedding 模型
 
