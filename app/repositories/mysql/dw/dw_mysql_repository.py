@@ -52,3 +52,14 @@ class DWMySQLRepository:
         """执行最终 SQL，并把 SQLAlchemy 行对象转换成前端更易消费的字典列表"""
         result = await self.session.execute(text(sql))
         return [dict(row) for row in result.mappings().fetchall()]
+
+    async def list_tables(self) -> list[str]:
+        """返回数仓中全部表名（SHOW TABLES，权限比 information_schema 更宽松）"""
+        result = await self.session.execute(text("SHOW TABLES"))
+        return [row[0] for row in result.fetchall()]
+
+    async def fetch_table_data(self, table_name: str) -> list[dict]:
+        """查询单张表的全部数据，返回字典行列表（表名来自 SHOW TABLES，反引号防注入）"""
+        sql = f"SELECT * FROM `{table_name}`"
+        result = await self.session.execute(text(sql))
+        return [dict(row) for row in result.mappings().fetchall()]

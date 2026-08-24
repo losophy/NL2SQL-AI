@@ -73,3 +73,21 @@ export type SessionMessage = {
 export type SessionDetail = SessionSummary & {
   messages: SessionMessage[];
 };
+
+/** 表元数据快捷查询返回的“一张表 + 其全部数据”分组 */
+export type TableDataGroup = {
+  表名: string;
+  行数: number;
+  数据: Record<string, unknown>[];
+};
+
+/** 判断 result 是否为表元数据多表结构（元素含“数据”字段） */
+export function isTableDataGroups(result: unknown): result is TableDataGroup[] {
+  return (
+    Array.isArray(result) &&
+    result.length > 0 &&
+    typeof result[0] === "object" &&
+    result[0] !== null &&
+    Array.isArray((result[0] as TableDataGroup).数据)
+  );
+}

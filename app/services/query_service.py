@@ -10,6 +10,7 @@
 """
 
 import json
+import re
 import time
 import uuid
 from datetime import date, datetime
@@ -51,6 +52,19 @@ def _json_safe(value):
     if isinstance(value, (datetime, date)):
         return value.isoformat()
     return value
+
+
+# 表元数据问题识别：命中则走快捷路径直接查库，不跑完整问数流程
+TABLE_META_RE = re.compile(
+    r"(多少张?表|几个表|所有表|全部表|哪些表|有哪些表|表(?:列表|清单|名)|列出.*表|显示.*表)"
+)
+# 表数量超过该阈值时不再返回全量数据，只提示用户去数据库查询
+TABLE_LIST_THRESHOLD = 10
+
+
+def is_table_meta_question(query: str) -> bool:
+    """判断用户问题是否为“数据库表清单/表数量”类元数据问题"""
+    return bool(TABLE_META_RE.search(query))
 
 
 class QueryService:
@@ -119,6 +133,25 @@ class QueryService:
         }
         saved = False
 
+        # ---- 表元数据问题快捷路径：不走完整问数流程，直接查 dw 库 ----
+        if is_table_meta_question(query):
+            assistant = await self._handle_table_meta_query(query)
+            result_event: dict = {"type": "result", "data": assistant["result_summary"] or []}
+            if assistant["sql"]:
+                result_event["sql"] = assistant["sql"]
+            yield f"data: {json.dumps(result_event, ensure_ascii=False, default=str)}\n\n"
+
+            if repository is not None:
+                await self._save_assistant_message(repository, session_id, assistant)
+            if created_session_id:
+                # 兜底创建会话的 id 通过 SSE 尾事件回传前端
+                try:
+                    event = {"type": "session_created", "session_id": created_session_id}
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                except Exception:  # noqa: BLE001 取消时 generator 已关闭，忽略
+                    pass
+            return
+
         # State 只放会被图节点读写和合并的业务数据，外部工具对象不塞进 State
         state = DataAgentState(query=query)
         # Context 保存本次图执行需要复用的外部依赖，节点通过 runtime.context 读取
@@ -167,6 +200,43 @@ class QueryService:
                     yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
                 except Exception:  # noqa: BLE001 取消时 generator 已关闭，忽略
                     pass
+
+    # ------------------------------------------------------------------ 快捷路径
+
+    async def _handle_table_meta_query(self, query: str) -> dict:
+        """表元数据快捷查询：直接查 dw 库所有表，组装 assistant 落库数据
+
+        - 表数量不超过阈值：返回所有表 + 每张表全部数据（多表结构）
+        - 表数量超过阈值：不返回数据，只提示用户去数据库查询，并给出 SQL
+        """
+        tables = await self.dw_mysql_repository.list_tables()
+
+        if len(tables) <= TABLE_LIST_THRESHOLD:
+            groups = []
+            for table in tables:
+                rows = await self.dw_mysql_repository.fetch_table_data(table)
+                groups.append({"表名": table, "行数": len(rows), "数据": _json_safe(rows)})
+            # 展示实际执行的 SQL：先看表清单，再逐表查全量数据
+            sql_lines = ["SHOW TABLES;"]
+            sql_lines.extend(f"SELECT * FROM `{table}`;" for table in tables)
+            return {
+                "steps": [],
+                "content": f"查询完成，共 {len(tables)} 张表。",
+                "sql": "\n".join(sql_lines),
+                "result_summary": groups,
+                "error": None,
+            }
+
+        return {
+            "steps": [],
+            "content": (
+                f"数据库中共有 {len(tables)} 张表，数量较多，"
+                "请到数据库中执行以下语句查看。"
+            ),
+            "sql": "SHOW TABLES;",
+            "result_summary": [],
+            "error": None,
+        }
 
     # ------------------------------------------------------------------ 落库辅助
 

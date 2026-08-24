@@ -6,6 +6,7 @@ import { Bot, Copy, UserRound } from "lucide-react";
 import { ResultTable } from "./ResultTable";
 import { StepRail } from "./StepRail";
 import { cn, formatSql, formatTime, toClipboardText } from "../lib/format";
+import { isTableDataGroups } from "../types/agent";
 import type { ChatMessage } from "../types/agent";
 
 export function MessageBubble({ message }: { message: ChatMessage }) {
@@ -65,7 +66,21 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
               </pre>
             </div>
           )}
-          {!isUser && message.result !== undefined && <ResultTable data={message.result} />}
+          {!isUser && message.result !== undefined && isTableDataGroups(message.result) && (
+            <div className="mt-3 space-y-4">
+              {message.result.map((group) => (
+                <div key={group.表名}>
+                  <div className="mb-1 text-sm font-semibold text-ink/70">
+                    {group.表名}（{group.行数} 行）
+                  </div>
+                  <ResultTable data={group.数据} />
+                </div>
+              ))}
+            </div>
+          )}
+          {!isUser && message.result !== undefined && !isTableDataGroups(message.result) && (
+            <ResultTable data={message.result} />
+          )}
 
           <div
             className={cn(
