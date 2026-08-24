@@ -3,13 +3,28 @@
  * 组合展示用户问题、智能体回复、执行流程和结果表格
  */
 import { Bot, Copy, UserRound } from "lucide-react";
+import { HumanApprovalCard } from "./HumanApprovalCard";
 import { ResultTable } from "./ResultTable";
 import { StepRail } from "./StepRail";
 import { cn, formatSql, formatTime, toClipboardText } from "../lib/format";
 import { isTableDataGroups } from "../types/agent";
 import type { ChatMessage } from "../types/agent";
 
-export function MessageBubble({ message }: { message: ChatMessage }) {
+type MessageBubbleProps = {
+  message: ChatMessage;
+  /** 写操作审批回调：确认执行 / 取消并重新生成 */
+  onApprove?: (threadId: string) => void;
+  onReject?: (threadId: string) => void;
+  /** 审批按钮禁用（续流请求进行中） */
+  approvalBusy?: boolean;
+};
+
+export function MessageBubble({
+  message,
+  onApprove,
+  onReject,
+  approvalBusy,
+}: MessageBubbleProps) {
   const isUser = message.role === "user";
 
   const copy = async () => {
@@ -56,6 +71,16 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
           )}
 
           {!isUser && <StepRail steps={message.steps} />}
+          {!isUser && message.pendingApproval && (
+            <HumanApprovalCard
+              sql={message.pendingApproval.sql}
+              sqlType={message.pendingApproval.sql_type}
+              impactSummary={message.pendingApproval.impact_summary}
+              disabled={approvalBusy}
+              onApprove={() => onApprove?.(message.pendingApproval!.thread_id)}
+              onReject={() => onReject?.(message.pendingApproval!.thread_id)}
+            />
+          )}
           {!isUser && message.sql && (
             <div className="mt-3 border border-ink/10 bg-white/60">
               <div className="border-b border-ink/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink/45">

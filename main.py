@@ -11,6 +11,7 @@ import uuid
 from fastapi import FastAPI, Request
 
 from app.api.lifespan import lifespan
+from app.api.routers.human_feedback_router import human_feedback_router
 from app.api.routers.query_router import query_router
 from app.api.routers.session_router import session_router
 from app.core.context import request_id_ctx_var
@@ -22,6 +23,8 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(query_router)
 # 会话历史接口：创建 列表 详情与删除
 app.include_router(session_router)
+# 写操作人工审批续流接口
+app.include_router(human_feedback_router)
 
 
 @app.middleware("http")

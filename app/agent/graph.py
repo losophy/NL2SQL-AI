@@ -9,12 +9,16 @@
 
 import asyncio
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.constants import END, START
 from langgraph.graph import StateGraph
 
 from app.agent.context import DataAgentContext
 from app.agent.nodes.add_extra_context import add_extra_context
+from app.agent.nodes.cancel_write import cancel_write
+from app.agent.nodes.classify_sql_type import classify_sql_type
 from app.agent.nodes.correct_sql import correct_sql
+from app.agent.nodes.estimate_impact import estimate_impact
 from app.agent.nodes.extract_keywords import extract_keywords
 from app.agent.nodes.filter_metric import filter_metric
 from app.agent.nodes.filter_table import filter_table
@@ -23,8 +27,10 @@ from app.agent.nodes.merge_retrieved_info import merge_retrieved_info
 from app.agent.nodes.recall_column import recall_column
 from app.agent.nodes.recall_metric import recall_metric
 from app.agent.nodes.recall_value import recall_value
+from app.agent.nodes.resolve_insert_primary_key import resolve_insert_primary_key
 from app.agent.nodes.run_sql import run_sql
 from app.agent.nodes.validate_sql import validate_sql
+from app.agent.nodes.wait_for_human_input import wait_for_human_input
 from app.agent.state import DataAgentState
 from app.clients.embedding_client_manager import embedding_client_manager
 from app.clients.es_client_manager import es_client_manager
@@ -54,6 +60,12 @@ graph_builder.add_node("add_extra_context", add_extra_context)
 graph_builder.add_node("generate_sql", generate_sql)
 graph_builder.add_node("validate_sql", validate_sql)
 graph_builder.add_node("correct_sql", correct_sql)
+# HITL 写操作审批链路节点
+graph_builder.add_node("classify_sql_type", classify_sql_type)
+graph_builder.add_node("resolve_insert_primary_key", resolve_insert_primary_key)
+graph_builder.add_node("estimate_impact", estimate_impact)
+graph_builder.add_node("wait_for_human_input", wait_for_human_input)
+graph_builder.add_node("cancel_write", cancel_write)
 graph_builder.add_node("run_sql", run_sql)
 
 # 从用户问题开始，先抽取关键词作为后续检索的基础
@@ -79,17 +91,45 @@ graph_builder.add_edge("filter_metric", "add_extra_context")
 graph_builder.add_edge("add_extra_context", "generate_sql")
 graph_builder.add_edge("generate_sql", "validate_sql")
 
-# SQL 校验通过就直接执行，校验失败则先进入修正节点
+# SQL 校验失败先进修正节点；校验通过则识别 SQL 类型
 graph_builder.add_conditional_edges(
     source="validate_sql",
-    path=lambda state: "run_sql" if state["error"] is None else "correct_sql",
-    path_map={"run_sql": "run_sql", "correct_sql": "correct_sql"},
+    path=lambda state: "classify_sql_type" if state["error"] is None else "correct_sql",
+    path_map={"classify_sql_type": "classify_sql_type", "correct_sql": "correct_sql"},
 )
-graph_builder.add_edge("correct_sql", "run_sql")
+# 修正后的 SQL 同样需要重新识别类型
+graph_builder.add_edge("correct_sql", "classify_sql_type")
+
+# 按 SQL 类型分流：SELECT 直接执行，写操作先经主键预检（INSERT 冲突自动分配），再走影响预估 + 人工审批
+graph_builder.add_conditional_edges(
+    source="classify_sql_type",
+    path=lambda state: (
+        "run_sql"
+        if state.get("sql_type", "select") == "select"
+        else "resolve_insert_primary_key"
+    ),
+    path_map={
+        "run_sql": "run_sql",
+        "resolve_insert_primary_key": "resolve_insert_primary_key",
+    },
+)
+graph_builder.add_edge("resolve_insert_primary_key", "estimate_impact")
+graph_builder.add_edge("estimate_impact", "wait_for_human_input")
+
+# 人工审批：确认则执行，取消则不执行不重新生成（直接结束流程）
+graph_builder.add_conditional_edges(
+    source="wait_for_human_input",
+    path=lambda state: (
+        "run_sql" if state.get("human_action", "reject") == "approve" else "cancel_write"
+    ),
+    path_map={"run_sql": "run_sql", "cancel_write": "cancel_write"},
+)
+graph_builder.add_edge("cancel_write", END)
 graph_builder.add_edge("run_sql", END)
 
 # 编译后的 graph 是对外使用的 Agent 执行入口
-graph = graph_builder.compile()
+# checkpointer 用于 HITL 暂停/恢复：写操作审批时中断流程，用户确认后从断点继续
+graph = graph_builder.compile(checkpointer=MemorySaver())
 
 # print(graph.get_graph().draw_mermaid())
 

@@ -118,6 +118,17 @@ export function StepRail({ steps = [] }: { steps?: StepState[] }) {
   if (steps.length === 0) return null;
 
   const statusMap = getStatusMap(steps);
+  // 固定拓扑流程图只认识这些节点；其余步骤（建表/删表、主键预检等）走"当前步骤"动态列表
+  const topoSteps = new Set(nodes.map((node) => node.step));
+  const mapped = steps.filter((step) => topoSteps.has(step.step));
+  const extraOrdered = [
+    ...new Set(
+      steps
+        .filter((step) => !topoSteps.has(step.step))
+        .map((step) => step.step),
+    ),
+  ];
+  const showFlow = mapped.length > 0;
 
   return (
     <section className="mt-4 border border-ink/10 bg-white/40 px-3 py-4 shadow-line">
@@ -126,58 +137,98 @@ export function StepRail({ steps = [] }: { steps?: StepState[] }) {
         <div className="text-xs text-ink/45">LangGraph</div>
       </div>
 
-      <div className="overflow-x-auto">
-        <div className="relative mx-auto h-[780px] w-[820px]">
-          <svg
-            className="pointer-events-none absolute inset-0 h-full w-full"
-            viewBox="0 0 820 780"
-            fill="none"
-            aria-hidden="true"
-          >
-            <defs>
-              <marker
-                id="flow-arrow"
-                markerHeight="8"
-                markerWidth="8"
-                orient="auto"
-                refX="6"
-                refY="4"
-              >
-                <path d="M0 0 L8 4 L0 8 Z" fill="rgba(44,58,49,0.58)" />
-              </marker>
-            </defs>
-            {connectors.map((path) => (
-              <path
-                key={path}
-                d={path}
-                stroke="rgba(44,58,49,0.5)"
-                strokeWidth="1.5"
-                markerEnd="url(#flow-arrow)"
+      {showFlow && (
+        <div className="overflow-x-auto">
+          <div className="relative mx-auto h-[780px] w-[820px]">
+            <svg
+              className="pointer-events-none absolute inset-0 h-full w-full"
+              viewBox="0 0 820 780"
+              fill="none"
+              aria-hidden="true"
+            >
+              <defs>
+                <marker
+                  id="flow-arrow"
+                  markerHeight="8"
+                  markerWidth="8"
+                  orient="auto"
+                  refX="6"
+                  refY="4"
+                >
+                  <path d="M0 0 L8 4 L0 8 Z" fill="rgba(44,58,49,0.58)" />
+                </marker>
+              </defs>
+              {connectors.map((path) => (
+                <path
+                  key={path}
+                  d={path}
+                  stroke="rgba(44,58,49,0.5)"
+                  strokeWidth="1.5"
+                  markerEnd="url(#flow-arrow)"
+                />
+              ))}
+              {branchLabels.map((label) => (
+                <text
+                  key={label.text}
+                  x={label.x}
+                  y={label.y}
+                  fill="rgba(44,58,49,0.62)"
+                  fontSize="13"
+                  fontWeight="600"
+                >
+                  {label.text}
+                </text>
+              ))}
+            </svg>
+
+            {nodes.map((node) => (
+              <FlowNodeCard
+                key={node.step}
+                node={node}
+                status={statusFor(node.step, statusMap)}
               />
             ))}
-            {branchLabels.map((label) => (
-              <text
-                key={label.text}
-                x={label.x}
-                y={label.y}
-                fill="rgba(44,58,49,0.62)"
-                fontSize="13"
-                fontWeight="600"
-              >
-                {label.text}
-              </text>
-            ))}
-          </svg>
-
-          {nodes.map((node) => (
-            <FlowNodeCard
-              key={node.step}
-              node={node}
-              status={statusFor(node.step, statusMap)}
-            />
-          ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {extraOrdered.length > 0 && (
+        <div className={cn(showFlow && "mt-3 border-t border-ink/10 pt-3")}>
+          <div className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink/45">
+            当前步骤
+          </div>
+          <div className="space-y-1.5">
+            {extraOrdered.map((step) => {
+              const status = statusFor(step, statusMap);
+              return (
+                <div
+                  key={step}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded px-3 py-2 text-sm font-medium transition",
+                    status === "pending" && "text-ink/45",
+                    status === "running" && "border border-brass/45 bg-brass/15 text-ink",
+                    status === "success" && "text-ink/75",
+                    status === "error" && "text-tomato",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "grid h-6 w-6 shrink-0 place-items-center rounded-full",
+                      status === "pending" && "bg-ink/5 text-ink/35",
+                      status === "running" && "bg-brass/20 text-brass",
+                      status === "success" && "bg-moss/15 text-moss",
+                      status === "error" && "bg-tomato/15 text-tomato",
+                    )}
+                  >
+                    <NodeIcon status={status} />
+                  </span>
+                  <span>{step}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

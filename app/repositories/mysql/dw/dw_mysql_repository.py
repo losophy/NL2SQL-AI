@@ -58,8 +58,25 @@ class DWMySQLRepository:
         result = await self.session.execute(text("SHOW TABLES"))
         return [row[0] for row in result.fetchall()]
 
+    async def get_primary_keys(self, table_name: str) -> list[str]:
+        """查询表的主键列名（复合主键返回多列，按 Key_name='PRIMARY' 过滤）"""
+        sql = f"SHOW KEYS FROM `{table_name}` WHERE Key_name = 'PRIMARY'"
+        result = await self.session.execute(text(sql))
+        return [row["Column_name"] for row in result.mappings().fetchall()]
+
     async def fetch_table_data(self, table_name: str) -> list[dict]:
         """查询单张表的全部数据，返回字典行列表（表名来自 SHOW TABLES，反引号防注入）"""
         sql = f"SELECT * FROM `{table_name}`"
         result = await self.session.execute(text(sql))
         return [dict(row) for row in result.mappings().fetchall()]
+
+    async def run_mutation(self, sql: str) -> int:
+        """执行 INSERT/UPDATE/DELETE 写操作，返回受影响行数
+
+        写操作前先 rollback 掉前面节点遗留的只读事务（SELECT/EXPLAIN 等），
+        确保本次写从干净事务开始，commit 才能真正持久化到 dw。
+        """
+        await self.session.rollback()
+        result = await self.session.execute(text(sql))
+        await self.session.commit()
+        return result.rowcount

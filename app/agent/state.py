@@ -77,3 +77,10 @@ class DataAgentState(TypedDict):
     sql: str  # 生成或校正后的SQL
 
     error: str  # 校验SQL时出现的错误信息
+
+    # ---- HITL 写操作审批相关 ----
+    sql_type: str  # SQL 操作类型：select / insert / update / delete
+    impact_summary: str  # 写操作影响范围预估描述（如"新增 1 行"、"将修改 3 行"）
+    pk_note: str  # INSERT 主键预检说明（如"主键 C011 已被占用，已自动分配 C021"）
+    human_action: str  # 人工审批结果：approve / reject
+    conversation_id: str  # 线程 id，用于 interrupt 暂停与恢复

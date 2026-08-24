@@ -20,6 +20,7 @@ import {
   deleteSession,
   getSession,
   listSessions,
+  streamHumanFeedback,
   streamQuery,
 } from "./lib/agentApi";
 import { cn, summarizeResult } from "./lib/format";
@@ -182,6 +183,19 @@ export default function App() {
             return message;
           }
 
+          if (event.type === "human_approval") {
+            return {
+              ...message,
+              status: "waiting",
+              pendingApproval: {
+                sql: event.sql,
+                sql_type: event.sql_type,
+                impact_summary: event.impact_summary,
+                thread_id: event.thread_id,
+              },
+            };
+          }
+
           if (event.type === "progress") {
             return {
               ...message,
@@ -246,6 +260,132 @@ export default function App() {
 
   const stopQuery = () => {
     activeController?.abort();
+  };
+
+  /** 用户在审核卡片上确认/取消写操作：提交决策并续流恢复执行 */
+  const handleApproval = async (threadId: string, action: "approve" | "reject") => {
+    if (isStreaming) return;
+    const target = messages.find((message) => message.role === "assistant" && message.pendingApproval);
+    if (!target) return;
+
+    // 取消不执行：收回审批卡片但保留消息（含执行流程），并通知后端取消（不再重新生成、不执行）
+    if (action === "reject") {
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === target.id
+            ? {
+                ...message,
+                pendingApproval: undefined,
+                status: "done",
+                content: "已取消，未执行。",
+              }
+            : message,
+        ),
+      );
+      const cancelController = new AbortController();
+      setActiveController(cancelController);
+      try {
+        await streamHumanFeedback(threadId, action, activeSessionId ?? undefined, {
+          signal: cancelController.signal,
+          onEvent: () => {}, // 审批卡片已本地收回，忽略后端事件
+        });
+      } catch {
+        // 取消请求失败不影响界面
+      } finally {
+        setActiveController(null);
+        void refreshSessions();
+      }
+      return;
+    }
+
+    const controller = new AbortController();
+    setActiveController(controller);
+    setMessages((current) =>
+      current.map((message) =>
+        message.id === target.id
+          ? {
+              ...message,
+              pendingApproval: undefined,
+              status: "streaming",
+              content: "正在执行写操作...",
+            }
+          : message,
+      ),
+    );
+
+    const onEvent = (event: AgentEvent) => {
+      setMessages((current) =>
+        current.map((message) => {
+          if (message.id !== target.id) return message;
+
+          if (event.type === "session_created") {
+            setActiveSessionId(event.session_id);
+            return message;
+          }
+
+          // 审批已提交，忽略续流时重发的审批事件（避免审批卡片重新弹出/残留）
+          if (event.type === "human_approval") {
+            return message;
+          }
+
+          if (event.type === "progress") {
+            return {
+              ...message,
+              content: event.status === "running" ? `正在执行：${event.step}` : message.content,
+              steps: upsertStep(message.steps, event),
+            };
+          }
+
+          if (event.type === "result") {
+            return {
+              ...message,
+              status: "done",
+              content: summarizeResult(event.data),
+              result: event.data,
+              sql: event.sql,
+            };
+          }
+
+          return {
+            ...message,
+            status: "error",
+            content: "这次查询没有成功。",
+            error: event.message,
+          };
+        }),
+      );
+    };
+
+    try {
+      await streamHumanFeedback(threadId, action, activeSessionId ?? undefined, {
+        signal: controller.signal,
+        onEvent,
+      });
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === target.id && message.status === "streaming"
+            ? { ...message, status: "done", content: "流程已结束，后端未返回查询结果。" }
+            : message,
+        ),
+      );
+    } catch (error) {
+      const isAbort = error instanceof DOMException && error.name === "AbortError";
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === target.id
+            ? {
+                ...message,
+                status: isAbort ? "done" : "error",
+                content: isAbort ? "已停止本次查询。" : "无法连接问数接口。",
+                error: isAbort ? undefined : error instanceof Error ? error.message : String(error),
+              }
+            : message,
+        ),
+      );
+    } finally {
+      setActiveController(null);
+      void refreshSessions();
+    }
   };
 
   return (
@@ -338,7 +478,13 @@ export default function App() {
             ) : (
               <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 lg:px-8">
                 {messages.map((message) => (
-                  <MessageBubble key={message.id} message={message} />
+                  <MessageBubble
+                    key={message.id}
+                    message={message}
+                    approvalBusy={isStreaming}
+                    onApprove={(threadId) => void handleApproval(threadId, "approve")}
+                    onReject={(threadId) => void handleApproval(threadId, "reject")}
+                  />
                 ))}
               </div>
             )}

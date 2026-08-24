@@ -28,7 +28,21 @@ export type SessionCreatedEvent = {
   session_id: string;
 };
 
-export type AgentEvent = ProgressEvent | ResultEvent | ErrorEvent | SessionCreatedEvent;
+/** 写操作触发人工审批：后端暂停流程，等待用户在审核卡片上确认/取消 */
+export type HumanApprovalEvent = {
+  type: "human_approval";
+  sql: string;
+  sql_type: string;
+  impact_summary: string;
+  thread_id: string;
+};
+
+export type AgentEvent =
+  | ProgressEvent
+  | ResultEvent
+  | ErrorEvent
+  | SessionCreatedEvent
+  | HumanApprovalEvent;
 
 export type StepState = {
   step: string;
@@ -41,12 +55,19 @@ export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   createdAt: number;
-  status?: "streaming" | "done" | "error";
+  status?: "streaming" | "done" | "error" | "waiting";
   steps?: StepState[];
   result?: unknown;
   /** 最终执行的 SQL 语句（来自 result 事件） */
   sql?: string;
   error?: string;
+  /** 写操作待审批信息：非空时渲染审核卡片 */
+  pendingApproval?: {
+    sql: string;
+    sql_type: string;
+    impact_summary: string;
+    thread_id: string;
+  };
 };
 
 /** 会话列表项（后端 /api/sessions 返回） */

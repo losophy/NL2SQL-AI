@@ -63,6 +63,58 @@ export async function streamQuery(query: string, options: QueryOptions) {
   }
 }
 
+/** 写操作审批续流：把用户在审核卡片上的决策提交后端，返回恢复执行后的 SSE 流 */
+export async function streamHumanFeedback(
+  threadId: string,
+  action: "approve" | "reject",
+  sessionId: string | undefined,
+  options: QueryOptions,
+) {
+  const response = await fetch(`${API_BASE_URL}/api/human-feedback`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+    },
+    body: JSON.stringify({ thread_id: threadId, action, session_id: sessionId }),
+    signal: options.signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(`接口请求失败：HTTP ${response.status}`);
+  }
+
+  if (!response.body) {
+    throw new Error("浏览器未返回可读取的流式响应。");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split(/\n\n/);
+    buffer = chunks.pop() ?? "";
+
+    for (const chunk of chunks) {
+      const event = parseSseChunk(chunk);
+      if (event) {
+        options.onEvent(event);
+      }
+    }
+  }
+
+  buffer += decoder.decode();
+  const tail = parseSseChunk(buffer);
+  if (tail) {
+    options.onEvent(tail);
+  }
+}
+
 function parseSseChunk(chunk: string): AgentEvent | null {
   const payload = chunk
     .split("\n")
