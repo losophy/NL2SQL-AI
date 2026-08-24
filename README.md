@@ -47,6 +47,8 @@
     - 比单纯做表级或字段级检索更贴近真实企业分析流程。
 - **从检索到执行的完整可运行链路**
     - 不停留在 Prompt 设计，而是会真实生成 SQL、执行查询，并以流式方式返回结果。
+- **写操作人工审批 + Time-Travel 数据回滚**
+    - 增删改（INSERT / UPDATE / DELETE）执行前弹人工审批卡片确认，执行后自动记录审计日志（含执行前数据快照），可在对应消息旁一键回滚到该操作之前，误删误改可自助恢复。
 - **工程化后端结构清晰**
     - 基于 `FastAPI + LangGraph + Repository + Client Manager` 组织配置、客户端、仓储层、服务层与智能体流程，便于维护和扩展。
 
@@ -95,7 +97,7 @@ NL2SQL-Agent/
 │   ├── prompt/           # Prompt 加载工具
 │   ├── repositories/     # MySQL、Qdrant、Elasticsearch 数据访问层
 │   ├── scripts/          # 元数据知识库构建脚本
-│   └── services/         # 元数据构建服务和问数查询服务
+│   └── services/         # 元数据构建、问数查询、会话与 Time-Travel 回滚服务
 ├── conf/                 # app_config.yaml、meta_config.yaml
 ├── docker/               # Docker Compose、MySQL 初始化 SQL、ES 插件、Embedding 挂载目录
 ├── frontend/             # React + Vite + Tailwind CSS 前端项目
@@ -179,7 +181,7 @@ docker compose -f docker/docker-compose.yaml up -d
 | Qdrant        | `6333` |
 | Embedding     | `8081` |
 
-> `docker/mysql/meta.sql` 和 `docker/mysql/dw.sql` 会在 MySQL 容器首次启动时自动初始化元数据库和游戏数仓。
+> `docker/mysql/meta.sql` 和 `docker/mysql/dw.sql` 会在 MySQL 容器首次启动时自动初始化元数据库和游戏数仓。meta 库包含元数据表（表/字段/指标）、会话与消息表，以及写操作审计表 `write_audit_log`（Time-Travel 回滚的数据源）。
 
 ### 7. 构建元数据知识库
 
@@ -198,10 +200,17 @@ uv run fastapi dev main.py
 后端接口：
 
 ```text
-POST http://127.0.0.1:8000/api/query
+POST   /api/query             # 问数（SSE 流式返回节点进度与结果）
+POST   /api/human-feedback    # 写操作人工审批续流（approve 确认 / reject 取消）
+GET    /api/sessions          # 会话历史列表
+POST   /api/sessions          # 创建会话
+GET    /api/sessions/{id}     # 会话详情（含消息与回滚关联）
+DELETE /api/sessions/{id}     # 删除会话
+GET    /api/audit-logs        # 写操作审计日志（回滚列表）
+POST   /api/rollback          # 回滚写操作（LIFO 逆序，连带还原之后的操作）
 ```
 
-请求示例：
+问数请求示例：
 
 ```json
 {
@@ -211,11 +220,13 @@ POST http://127.0.0.1:8000/api/query
 
 SSE 消息类型：
 
-| 类型       | 含义         |
-| ---------- | ------------ |
-| `progress` | 节点执行进度 |
-| `result`   | 最终查询结果 |
-| `error`    | 全局异常消息 |
+| 类型              | 含义                                                       |
+| ----------------- | ---------------------------------------------------------- |
+| `progress`        | 节点执行进度                                               |
+| `result`          | 最终查询结果（写操作时附带 `audit_log_id`，供消息左侧挂接回滚入口） |
+| `error`           | 全局异常消息                                               |
+| `human_approval`  | 写操作人工审批卡片（含 SQL、影响预估、thread_id）           |
+| `session_created` | 后端兜底创建会话时回传的会话 id                             |
 
 ### 9. 启动前端
 
