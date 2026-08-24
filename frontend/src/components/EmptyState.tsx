@@ -1,21 +1,16 @@
 /**
  * 首页空状态组件
- * 展示产品入口信息和可点击的示例问数问题
+ * 展示产品入口信息
  */
 import { LineChart, Search, ShoppingBag, Sparkles } from "lucide-react";
-
-type EmptyStateProps = {
-  examples: string[];
-  onUseExample: (example: string) => void;
-};
 
 const highlights = [
   { label: "混合检索", icon: Search },
   { label: "SQL 闭环", icon: LineChart },
-  { label: "游戏数仓", icon: ShoppingBag },
+  { label: "支持增删查改", icon: ShoppingBag },
 ];
 
-export function EmptyState({ examples, onUseExample }: EmptyStateProps) {
+export function EmptyState() {
   return (
     <div className="mx-auto flex min-h-full max-w-5xl flex-col justify-center px-4 py-12">
       <div className="mb-10 max-w-3xl">
@@ -24,7 +19,7 @@ export function EmptyState({ examples, onUseExample }: EmptyStateProps) {
           NL2SQL Agent
         </div>
         <h1 className="text-balance text-4xl font-semibold leading-tight text-ink sm:text-6xl">
-          游戏问数
+          自然语言到SQL
         </h1>
       </div>
 
@@ -38,19 +33,6 @@ export function EmptyState({ examples, onUseExample }: EmptyStateProps) {
             </div>
           );
         })}
-      </div>
-
-      <div className="mt-6 grid gap-3 md:grid-cols-2">
-        {examples.map((example) => (
-          <button
-            key={example}
-            type="button"
-            onClick={() => onUseExample(example)}
-            className="min-h-20 border border-ink/10 bg-[#f3f9f2]/85 px-4 py-4 text-left text-[15px] leading-6 text-ink transition hover:-translate-y-0.5 hover:border-moss/50 hover:bg-[#fafcf8] focus:outline-none focus:ring-2 focus:ring-moss/40"
-          >
-            {example}
-          </button>
-        ))}
       </div>
     </div>
   );

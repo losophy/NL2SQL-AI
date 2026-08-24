@@ -6,7 +6,6 @@ import {
   Activity,
   BarChart3,
   Eraser,
-  History,
   Leaf,
   MessageSquarePlus,
   Server,
@@ -18,13 +17,6 @@ import { MessageBubble } from "./components/MessageBubble";
 import { streamQuery } from "./lib/agentApi";
 import { cn, summarizeResult } from "./lib/format";
 import type { AgentEvent, ChatMessage, StepState } from "./types/agent";
-
-const examples = [
-  "统计 2025 年第一季度各服务器（或渠道服）的总流水（充值金额），并按流水从高到低排序。",
-  "统计 2025 年 3 月各道具品类（如皮肤、礼包、消耗品、通行证）的销售件数和总收入。",
-  "查询华东大区（或对应地域服务器集群）2025 年第一季度流水（或付费总额）最高的前 5 个道具/皮肤。",
-  "按玩家 VIP 等级（或心悦会员等级）统计 2025 年第一季度的付费笔数（充值次数）和总流水（充值总额）。",
-];
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "Vite /api proxy";
 
@@ -172,7 +164,7 @@ export default function App() {
                 <BarChart3 className="h-5 w-5" aria-hidden="true" />
               </div>
               <div>
-                <div className="text-base font-semibold tracking-[0.02em]">游戏问数</div>
+                <div className="text-base font-semibold tracking-[0.02em]">自然语言到SQL</div>
                 <div className="text-xs text-ink/50">NL2SQL-agent</div>
               </div>
             </div>
@@ -188,26 +180,6 @@ export default function App() {
               <MessageSquarePlus className="h-4 w-4" aria-hidden="true" />
               新会话
             </button>
-
-            <section>
-              <div className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink/45">
-                <History className="h-3.5 w-3.5" aria-hidden="true" />
-                样例
-              </div>
-              <div className="space-y-2">
-                {examples.map((example) => (
-                  <button
-                    key={example}
-                    type="button"
-                    disabled={isStreaming}
-                    onClick={() => startQuery(example)}
-                    className="w-full border border-ink/10 bg-white/42 px-3 py-3 text-left text-sm leading-5 text-ink/75 transition hover:border-moss/35 hover:bg-white/75 disabled:cursor-not-allowed disabled:opacity-55"
-                  >
-                    {example}
-                  </button>
-                ))}
-              </div>
-            </section>
           </div>
 
           <div className="border-t border-ink/10 p-4">
@@ -237,7 +209,7 @@ export default function App() {
                 <BarChart3 className="h-4 w-4" aria-hidden="true" />
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-ink">智能数据分析 Agent</div>
+                <div className="truncate text-sm font-semibold text-ink">自然语言到SQL Agent</div>
                 <div className="truncate text-xs text-ink/45">FastAPI SSE / LangGraph</div>
               </div>
             </div>
@@ -257,7 +229,7 @@ export default function App() {
 
           <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {messages.length === 0 ? (
-              <EmptyState examples={examples} onUseExample={(example) => setDraft(example)} />
+              <EmptyState />
             ) : (
               <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 lg:px-8">
                 {messages.map((message) => (
