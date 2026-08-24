@@ -100,6 +100,7 @@ export default function App() {
               status: "done",
               content: summarizeResult(event.data),
               result: event.data,
+              sql: event.sql,
             };
           }
 

@@ -5,7 +5,7 @@
 import { Bot, Copy, UserRound } from "lucide-react";
 import { ResultTable } from "./ResultTable";
 import { StepRail } from "./StepRail";
-import { cn, formatTime, toClipboardText } from "../lib/format";
+import { cn, formatSql, formatTime, toClipboardText } from "../lib/format";
 import type { ChatMessage } from "../types/agent";
 
 export function MessageBubble({ message }: { message: ChatMessage }) {
@@ -55,6 +55,16 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
           )}
 
           {!isUser && <StepRail steps={message.steps} />}
+          {!isUser && message.sql && (
+            <div className="mt-3 border border-ink/10 bg-white/60">
+              <div className="border-b border-ink/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink/45">
+                执行的SQL语句
+              </div>
+              <pre className="whitespace-pre-wrap break-words px-3 py-2.5 font-mono text-[13px] leading-6 text-ink/85">
+                {formatSql(message.sql)}
+              </pre>
+            </div>
+          )}
           {!isUser && message.result !== undefined && <ResultTable data={message.result} />}
 
           <div

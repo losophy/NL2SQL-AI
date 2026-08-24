@@ -13,6 +13,8 @@ export type ProgressEvent = {
 export type ResultEvent = {
   type: "result";
   data: unknown;
+  /** 最终执行的 SQL 语句，由 run_sql 节点随结果一并下发 */
+  sql?: string;
 };
 
 export type ErrorEvent = {
@@ -36,5 +38,7 @@ export type ChatMessage = {
   status?: "streaming" | "done" | "error";
   steps?: StepState[];
   result?: unknown;
+  /** 最终执行的 SQL 语句（来自 result 事件） */
+  sql?: string;
   error?: string;
 };

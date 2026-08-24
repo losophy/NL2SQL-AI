@@ -28,7 +28,8 @@ async def run_sql(state: DataAgentState, runtime: Runtime[DataAgentContext]):
         result = await dw_mysql_repository.run(sql)
         logger.info(f"SQL执行结果：{result}")
         writer({"type": "progress", "step": step, "status": "success"})
-        writer({"type": "result", "data": result})
+        # 把最终执行的 SQL 一并带在 result 事件里，前端可以在结果表格前展示
+        writer({"type": "result", "data": result, "sql": sql})
 
     except Exception as e:
         logger.error(f"{step} failed: {e}")

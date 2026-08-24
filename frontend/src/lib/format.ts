@@ -33,3 +33,29 @@ export function toClipboardText(value: unknown) {
   if (typeof value === "string") return value;
   return JSON.stringify(value, null, 2);
 }
+
+/**
+ * 按 SQL 关键字分行（轻量 SQL 美化，零依赖）
+ * SELECT / FROM / WHERE / GROUP BY / ORDER BY / JOIN 等关键字各自独立成行，
+ * AND / OR / ON 另起一行并缩进，便于阅读生成的 SQL。
+ */
+const SQL_KEYWORD_RE =
+  /\b(SELECT|FROM|WHERE|GROUP\s+BY|ORDER\s+BY|HAVING|LIMIT|LEFT\s+JOIN|RIGHT\s+JOIN|INNER\s+JOIN|FULL\s+JOIN|JOIN|UNION\s+ALL|UNION)\b/gi;
+const SQL_CLAUSE_RE = /\b(AND|OR|ON)\b/gi;
+
+export function formatSql(sql: string): string {
+  if (!sql) return sql;
+
+  let out = sql.trim();
+
+  // 主关键字前换行并统一大写
+  out = out.replace(SQL_KEYWORD_RE, (match) => `\n${match.trim().toUpperCase()}`);
+
+  // 子句（AND / OR / ON）换行并缩进两级
+  out = out.replace(SQL_CLAUSE_RE, (match) => `\n  ${match.toUpperCase()}`);
+
+  // 清理连续空行与首行前导空行
+  out = out.replace(/\n{2,}/g, "\n").trim();
+
+  return out;
+}
