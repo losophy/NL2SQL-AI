@@ -23,9 +23,13 @@ from app.repositories.es.value_es_repository import ValueESRepository
 from app.repositories.mysql.dw.dw_mysql_repository import DWMySQLRepository
 from app.repositories.mysql.meta.chat_session_repository import ChatSessionRepository
 from app.repositories.mysql.meta.meta_mysql_repository import MetaMySQLRepository
+from app.repositories.mysql.meta.write_audit_log_repository import (
+    WriteAuditLogRepository,
+)
 from app.repositories.qdrant.column_qdrant_repository import ColumnQdrantRepository
 from app.repositories.qdrant.metric_qdrant_repository import MetricQdrantRepository
 from app.services.query_service import QueryService
+from app.services.rollback_service import RollbackService
 from app.services.session_service import SessionService
 
 
@@ -92,6 +96,25 @@ async def get_chat_session_repository(
     return ChatSessionRepository(session)
 
 
+async def get_write_audit_log_repository(
+    session: Annotated[AsyncSession, Depends(get_meta_session)],
+) -> WriteAuditLogRepository:
+    """创建写操作审计日志仓储（复用元数据库 Session）"""
+
+    return WriteAuditLogRepository(session)
+
+
+async def get_rollback_service(
+    audit_repository: Annotated[
+        WriteAuditLogRepository, Depends(get_write_audit_log_repository)
+    ],
+    dw_mysql_repository: Annotated[DWMySQLRepository, Depends(get_dw_mysql_repository)],
+) -> RollbackService:
+    """组装 Time-Travel 回滚服务（审计日志在 meta，还原写操作在 dw）"""
+
+    return RollbackService(audit_repository, dw_mysql_repository)
+
+
 async def get_session_service(
     repository: Annotated[ChatSessionRepository, Depends(get_chat_session_repository)],
 ) -> SessionService:
@@ -118,6 +141,9 @@ async def get_query_service(
     chat_session_repository: Annotated[
         ChatSessionRepository, Depends(get_chat_session_repository)
     ],
+    write_audit_log_repository: Annotated[
+        WriteAuditLogRepository, Depends(get_write_audit_log_repository)
+    ],
 ) -> QueryService:
     """组装一次查询所需的业务服务"""
 
@@ -130,4 +156,5 @@ async def get_query_service(
         metric_qdrant_repository=metric_qdrant_repository,
         value_es_repository=value_es_repository,
         chat_session_repository=chat_session_repository,
+        write_audit_log_repository=write_audit_log_repository,
     )

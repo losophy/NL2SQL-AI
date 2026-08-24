@@ -34,7 +34,12 @@ def _parse_target(sql: str) -> tuple[str, str | None]:
 
 
 async def estimate_impact(state: DataAgentState, runtime: Runtime[DataAgentContext]):
-    """预估写操作影响范围并写入状态"""
+    """预估写操作影响范围并写入状态，同时抓取执行前快照 before_data 供回滚使用
+
+    - INSERT：固定新增 1 行，before_data 为空（回滚时按主键删除新插入的行）
+    - UPDATE/DELETE：通过 SELECT * WHERE 条件抓取命中行，行数即影响行数，
+      命中行全量数据作为 before_data 快照（回滚时据此还原旧值/恢复被删行）
+    """
 
     writer = runtime.stream_writer
     step = "预估影响范围"
@@ -42,6 +47,7 @@ async def estimate_impact(state: DataAgentState, runtime: Runtime[DataAgentConte
 
     sql_type = state.get("sql_type", "select")
     sql = state.get("sql") or ""
+    before_data: list[dict] = []
     try:
         if sql_type == "insert":
             impact_summary = "新增 1 行"
@@ -53,23 +59,25 @@ async def estimate_impact(state: DataAgentState, runtime: Runtime[DataAgentConte
             if not table:
                 impact_summary = "未能识别目标表，请人工核对"
             else:
-                count_sql = (
-                    f"SELECT COUNT(*) AS cnt FROM `{table}` WHERE {where}"
+                # 一次查询同时拿到影响行数与执行前快照（不再单独 COUNT）
+                before_sql = (
+                    f"SELECT * FROM `{table}` WHERE {where}"
                     if where
-                    else f"SELECT COUNT(*) AS cnt FROM `{table}`"
+                    else f"SELECT * FROM `{table}`"
                 )
-                rows = await runtime.context["dw_mysql_repository"].run(count_sql)
-                cnt = rows[0].get("cnt", 0) if rows else 0
+                rows = await runtime.context["dw_mysql_repository"].run(before_sql)
+                before_data = rows
+                cnt = len(rows)
                 verb = "更新" if sql_type == "update" else "删除"
                 impact_summary = f"将{verb} {cnt} 行"
                 if where is None:
                     impact_summary += "（全表操作！）"
-        logger.info(f"影响预估：{impact_summary}")
+        logger.info(f"影响预估：{impact_summary}（快照 {len(before_data)} 行）")
         writer({"type": "progress", "step": step, "status": "success"})
-        return {"impact_summary": impact_summary}
+        return {"impact_summary": impact_summary, "before_data": before_data}
 
     except Exception as e:
         logger.error(f"{step} failed: {e}")
         writer({"type": "progress", "step": step, "status": "error"})
         # 预估失败不阻断审批流程，提示人工核对
-        return {"impact_summary": "影响范围预估失败，请人工核对"}
+        return {"impact_summary": "影响范围预估失败，请人工核对", "before_data": []}

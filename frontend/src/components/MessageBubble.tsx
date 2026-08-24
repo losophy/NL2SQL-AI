@@ -1,14 +1,16 @@
 /**
  * 聊天消息气泡组件
  * 组合展示用户问题、智能体回复、执行流程和结果表格
+ * 写操作消息左侧额外挂接"回滚"卡片（Time-Travel）
  */
 import { Bot, Copy, UserRound } from "lucide-react";
 import { HumanApprovalCard } from "./HumanApprovalCard";
 import { ResultTable } from "./ResultTable";
+import { RollbackBadge } from "./RollbackBadge";
 import { StepRail } from "./StepRail";
 import { cn, formatSql, formatTime, toClipboardText } from "../lib/format";
 import { isTableDataGroups } from "../types/agent";
-import type { ChatMessage } from "../types/agent";
+import type { AuditLog, ChatMessage } from "../types/agent";
 
 type MessageBubbleProps = {
   message: ChatMessage;
@@ -17,6 +19,12 @@ type MessageBubbleProps = {
   onReject?: (threadId: string) => void;
   /** 审批按钮禁用（续流请求进行中） */
   approvalBusy?: boolean;
+  /** 该消息对应的写操作审计记录（有则左侧展示回滚卡片） */
+  auditLog?: AuditLog;
+  /** 当前回滚进行中的审计 id（用于禁用所有回滚按钮） */
+  rollingLogId?: number | null;
+  /** 消息级回滚回调 */
+  onRollback?: (logId: number) => void;
 };
 
 export function MessageBubble({
@@ -24,6 +32,9 @@ export function MessageBubble({
   onApprove,
   onReject,
   approvalBusy,
+  auditLog,
+  rollingLogId,
+  onRollback,
 }: MessageBubbleProps) {
   const isUser = message.role === "user";
 
@@ -35,8 +46,17 @@ export function MessageBubble({
   return (
     <article className={cn("group flex gap-3", isUser && "justify-end")}>
       {!isUser && (
-        <div className="mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-ink text-parchment">
-          <Bot className="h-4 w-4" aria-hidden="true" />
+        <div className="flex shrink-0 flex-col items-center gap-2">
+          <div className="mt-1 grid h-9 w-9 place-items-center rounded-full bg-ink text-parchment">
+            <Bot className="h-4 w-4" aria-hidden="true" />
+          </div>
+          {message.auditLogId && auditLog && (
+            <RollbackBadge
+              auditLog={auditLog}
+              rolling={rollingLogId !== undefined && rollingLogId !== null}
+              onRollback={onRollback}
+            />
+          )}
         </div>
       )}
 

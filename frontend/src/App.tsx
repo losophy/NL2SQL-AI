@@ -19,12 +19,20 @@ import {
   createSession,
   deleteSession,
   getSession,
+  listAuditLogs,
   listSessions,
+  rollback,
   streamHumanFeedback,
   streamQuery,
 } from "./lib/agentApi";
 import { cn, summarizeResult } from "./lib/format";
-import type { AgentEvent, ChatMessage, SessionSummary, StepState } from "./types/agent";
+import type {
+  AgentEvent,
+  AuditLog,
+  ChatMessage,
+  SessionSummary,
+  StepState,
+} from "./types/agent";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "Vite /api proxy";
 
@@ -48,6 +56,10 @@ export default function App() {
   const [activeController, setActiveController] = useState<AbortController | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  /** 当前会话的写操作审计日志（消息左侧回滚卡片数据源），问数结束后刷新 */
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  /** 回滚请求进行中的审计 id（用于禁用所有回滚按钮） */
+  const [rollingLogId, setRollingLogId] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const isStreaming = Boolean(activeController);
@@ -79,6 +91,42 @@ export default function App() {
       // 列表刷新失败不影响主流程
     }
   }
+
+  /** 拉取当前会话的写操作审计日志（供消息左侧回滚卡片匹配状态） */
+  const loadAuditLogs = async (sessionId: string | null) => {
+    if (!sessionId) {
+      setAuditLogs([]);
+      return;
+    }
+    try {
+      const list = await listAuditLogs(sessionId);
+      setAuditLogs(list);
+    } catch {
+      // 审计列表拉取失败不影响聊天主流程
+    }
+  };
+
+  /** 消息级回滚：二次确认后调用回滚接口，并按返回的 log_id 列表更新消息状态 */
+  const handleRollback = async (logId: number) => {
+    if (rollingLogId !== null) return;
+    const ok = window.confirm(
+      "确认回滚该写操作？\n\n该操作之后的所有写操作也会一并还原（LIFO 逆序），请确认数据影响。",
+    );
+    if (!ok) return;
+    setRollingLogId(logId);
+    try {
+      const result = await rollback(logId);
+      // 刷新审计列表：被回滚（含连带）记录的 status 变为 rolled_back，消息左侧卡片自动变"已回滚"
+      await loadAuditLogs(activeSessionId);
+      window.alert(
+        `已回滚 ${result.rolled_back} 个操作，还原 ${result.restored_rows} 行。\n\n${result.descriptions.join("\n")}`,
+      );
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "回滚失败");
+    } finally {
+      setRollingLogId(null);
+    }
+  };
 
   const startNewSession = async () => {
     if (isStreaming) return;
@@ -112,8 +160,10 @@ export default function App() {
           result: m.result_summary ?? undefined,
           sql: m.sql ?? undefined,
           error: m.error ?? undefined,
+          auditLogId: m.audit_log_id ?? undefined,
         })),
       );
+      await loadAuditLogs(sessionId);
     } catch {
       // 详情加载失败保持现状
     }
@@ -211,6 +261,7 @@ export default function App() {
               content: summarizeResult(event.data),
               result: event.data,
               sql: event.sql,
+              auditLogId: event.audit_log_id,
             };
           }
 
@@ -255,6 +306,8 @@ export default function App() {
       setActiveController(null);
       // 问数结束后刷新列表（标题/更新时间可能变化）
       void refreshSessions();
+      // 写操作可能已落库审计，刷新回滚面板
+      setAuditTick((tick) => tick + 1);
     }
   };
 
@@ -284,16 +337,37 @@ export default function App() {
       );
       const cancelController = new AbortController();
       setActiveController(cancelController);
+      // 取消不执行：仍需消费续流事件，把"等待人工确认"标记为完成、展示"写操作已取消"，
+      // 否则该步骤的圈会一直转（完成事件随续流下发，不能完全忽略）
+      const onCancelEvent = (event: AgentEvent) => {
+        setMessages((current) =>
+          current.map((message) => {
+            if (message.id !== target.id) return message;
+            // 审批卡片已本地收回：忽略续流重发的审批事件
+            if (event.type === "human_approval") return message;
+            if (event.type === "progress") {
+              return {
+                ...message,
+                content:
+                  event.status === "running" ? `正在执行：${event.step}` : message.content,
+                steps: upsertStep(message.steps, event),
+              };
+            }
+            return message;
+          }),
+        );
+      };
       try {
         await streamHumanFeedback(threadId, action, activeSessionId ?? undefined, {
           signal: cancelController.signal,
-          onEvent: () => {}, // 审批卡片已本地收回，忽略后端事件
+          onEvent: onCancelEvent,
         });
       } catch {
         // 取消请求失败不影响界面
       } finally {
         setActiveController(null);
         void refreshSessions();
+        void loadAuditLogs(activeSessionId);
       }
       return;
     }
@@ -343,6 +417,7 @@ export default function App() {
               content: summarizeResult(event.data),
               result: event.data,
               sql: event.sql,
+              auditLogId: event.audit_log_id,
             };
           }
 
@@ -385,6 +460,8 @@ export default function App() {
     } finally {
       setActiveController(null);
       void refreshSessions();
+      // 问数/审批结束后刷新审计列表，消息左侧回滚卡片状态随之更新
+      void loadAuditLogs(activeSessionId);
     }
   };
 
@@ -484,6 +561,13 @@ export default function App() {
                     approvalBusy={isStreaming}
                     onApprove={(threadId) => void handleApproval(threadId, "approve")}
                     onReject={(threadId) => void handleApproval(threadId, "reject")}
+                    auditLog={
+                      message.auditLogId !== undefined
+                        ? auditLogs.find((log) => log.log_id === message.auditLogId)
+                        : undefined
+                    }
+                    rollingLogId={rollingLogId}
+                    onRollback={(logId) => void handleRollback(logId)}
                   />
                 ))}
               </div>

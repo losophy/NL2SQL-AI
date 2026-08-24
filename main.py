@@ -13,6 +13,7 @@ from fastapi import FastAPI, Request
 from app.api.lifespan import lifespan
 from app.api.routers.human_feedback_router import human_feedback_router
 from app.api.routers.query_router import query_router
+from app.api.routers.rollback_router import rollback_router
 from app.api.routers.session_router import session_router
 from app.core.context import request_id_ctx_var
 
@@ -25,6 +26,8 @@ app.include_router(query_router)
 app.include_router(session_router)
 # 写操作人工审批续流接口
 app.include_router(human_feedback_router)
+# Time-Travel 回滚接口：审计日志查询与写操作还原
+app.include_router(rollback_router)
 
 
 @app.middleware("http")

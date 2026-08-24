@@ -67,6 +67,25 @@ CREATE TABLE chat_message
     `sql`          TEXT COMMENT '最终执行的SQL',
     result_summary JSON COMMENT '结果摘要(前10行样例)',
     error          TEXT COMMENT '错误信息',
+    audit_log_id   BIGINT COMMENT '关联的写操作审计记录ID(有则消息左侧可回滚)',
     created_at     BIGINT COMMENT '创建时间(epoch毫秒)',
     INDEX idx_msg_session_created (session_id, created_at)
 );
+
+DROP TABLE IF EXISTS write_audit_log;
+CREATE TABLE write_audit_log
+(
+    log_id       BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '审计记录ID',
+    session_id   VARCHAR(64) COMMENT '会话ID(可能为空，兼容无会话兜底场景)',
+    seq          INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '同一会话内的操作序号(单调递增,用于逆序回滚)',
+    op_type      VARCHAR(16) NOT NULL COMMENT '操作类型(INSERT/UPDATE/DELETE)',
+    table_name   VARCHAR(128) NOT NULL COMMENT '受影响表',
+    sql_text     TEXT NOT NULL COMMENT '实际执行的SQL',
+    before_data  JSON NULL COMMENT '执行前的受影响行快照(回滚依据)',
+    row_count    INT NOT NULL DEFAULT 0 COMMENT '影响行数',
+    status       VARCHAR(16) NOT NULL DEFAULT 'committed' COMMENT 'committed=已执行 / rolled_back=已回滚',
+    created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '执行时间',
+    PRIMARY KEY (log_id),
+    KEY idx_audit_session_seq (session_id, seq),
+    KEY idx_audit_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='写操作审计日志(支撑Time-Travel回滚)';

@@ -139,11 +139,25 @@ def _rebuild_insert(m: re.Match, cols: list[str], rows: list[list[str]]) -> str:
 async def resolve_insert_primary_key(
     state: DataAgentState, runtime: Runtime[DataAgentContext]
 ):
-    """INSERT 主键预检：多行逐行校验，冲突自动分配新主键，缺失自动补列/补值"""
+    """INSERT 主键预检：多行逐行校验，冲突自动分配新主键，缺失自动补列/补值
+
+    注意：无论走哪条分支（非 INSERT 放行 / 解析失败跳过 / 正常处理完成），
+    都必须发出 success 事件，否则前端"主键预检"步骤会一直转圈。
+    """
 
     writer = runtime.stream_writer
     step = "主键预检"
     writer({"type": "progress", "step": step, "status": "running"})
+
+    try:
+        return await _resolve(state, runtime, writer, step)
+    finally:
+        # 确保进度事件一定闭合：任何提前 return / 异常路径都补发 success
+        writer({"type": "progress", "step": step, "status": "success"})
+
+
+async def _resolve(state: DataAgentState, runtime: Runtime[DataAgentContext], writer, step: str):
+    """主键预检核心逻辑，返回需要写回 state 的字段（原 resolve_insert_primary_key 主体）"""
 
     sql = state.get("sql") or ""
     if state.get("sql_type") != "insert":
@@ -232,5 +246,4 @@ async def resolve_insert_primary_key(
     except Exception as e:  # noqa: BLE001 预检失败不阻断流程，交由后续执行与兜底处理
         logger.error(f"{step} failed: {e}")
 
-    writer({"type": "progress", "step": step, "status": "success"})
     return {}

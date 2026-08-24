@@ -15,6 +15,8 @@ export type ResultEvent = {
   data: unknown;
   /** 最终执行的 SQL 语句，由 run_sql 节点随结果一并下发 */
   sql?: string;
+  /** 写操作执行成功且审计落库后的记录 id：前端据此在消息左侧挂接回滚入口 */
+  audit_log_id?: number;
 };
 
 export type ErrorEvent = {
@@ -68,6 +70,8 @@ export type ChatMessage = {
     impact_summary: string;
     thread_id: string;
   };
+  /** 写操作执行成功后的审计记录 id：非空时消息左侧展示回滚入口 */
+  auditLogId?: number;
 };
 
 /** 会话列表项（后端 /api/sessions 返回） */
@@ -87,6 +91,7 @@ export type SessionMessage = {
   sql?: string | null;
   result_summary?: unknown[] | null;
   error?: string | null;
+  audit_log_id?: number | null;
   created_at: number;
 };
 
@@ -102,7 +107,7 @@ export type TableDataGroup = {
   数据: Record<string, unknown>[];
 };
 
-/** 判断 result 是否为表元数据多表结构（元素含“数据”字段） */
+/** 判断 result 是否为表元数据多表结构（元素含"数据"字段） */
 export function isTableDataGroups(result: unknown): result is TableDataGroup[] {
   return (
     Array.isArray(result) &&
@@ -112,3 +117,29 @@ export function isTableDataGroups(result: unknown): result is TableDataGroup[] {
     Array.isArray((result[0] as TableDataGroup).数据)
   );
 }
+
+// ------------------------------------------------------------------ Time-Travel 回滚
+
+/** 写操作审计记录（GET /api/audit-logs 返回，前端回滚列表数据源） */
+export type AuditLog = {
+  log_id: number;
+  session_id: string | null;
+  seq: number;
+  op_type: "INSERT" | "UPDATE" | "DELETE";
+  table_name: string;
+  sql_text: string;
+  before_data: Record<string, unknown>[] | null;
+  row_count: number;
+  status: "committed" | "rolled_back";
+  created_at: string | null;
+};
+
+/** 回滚结果摘要（POST /api/rollback 返回） */
+export type RollbackResult = {
+  log_id: number;
+  rolled_back: number;
+  restored_rows: number;
+  descriptions: string[];
+  /** 本次实际被回滚（含连带）的审计记录 id 列表 */
+  rolled_back_log_ids: number[];
+};

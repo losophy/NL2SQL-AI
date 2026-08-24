@@ -33,6 +33,9 @@ from app.repositories.es.value_es_repository import ValueESRepository
 from app.repositories.mysql.dw.dw_mysql_repository import DWMySQLRepository
 from app.repositories.mysql.meta.chat_session_repository import ChatSessionRepository
 from app.repositories.mysql.meta.meta_mysql_repository import MetaMySQLRepository
+from app.repositories.mysql.meta.write_audit_log_repository import (
+    WriteAuditLogRepository,
+)
 from app.repositories.qdrant.column_qdrant_repository import ColumnQdrantRepository
 from app.repositories.qdrant.metric_qdrant_repository import MetricQdrantRepository
 
@@ -127,6 +130,7 @@ class QueryService:
         metric_qdrant_repository: MetricQdrantRepository,
         value_es_repository: ValueESRepository,
         chat_session_repository: ChatSessionRepository | None = None,
+        write_audit_log_repository: WriteAuditLogRepository | None = None,
     ):
         # MySQL 仓储分别负责元数据补全和真实数仓环境信息读取
         self.meta_mysql_repository = meta_mysql_repository
@@ -140,6 +144,8 @@ class QueryService:
 
         # 会话历史仓储可选：注入后才执行落库
         self.chat_session_repository = chat_session_repository
+        # 写操作审计仓储：注入后写操作执行成功会落库审计日志（支撑 Time-Travel 回滚）
+        self.write_audit_log_repository = write_audit_log_repository
 
     async def query(self, query: str, session_id: str | None = None):
         """执行一次问数工作流，并逐段产出 SSE 消息；流结束时按需落库"""
@@ -178,6 +184,7 @@ class QueryService:
             "sql": None,
             "result_summary": None,
             "error": None,
+            "audit_log_id": None,
         }
         saved = False
 
@@ -311,7 +318,7 @@ class QueryService:
             return
 
         # State 只放会被图节点读写和合并的业务数据，外部工具对象不塞进 State
-        state = DataAgentState(query=query)
+        state = DataAgentState(query=query, session_id=session_id)
         # Context 保存本次图执行需要复用的外部依赖，节点通过 runtime.context 读取
         context = DataAgentContext(
             column_qdrant_repository=self.column_qdrant_repository,
@@ -320,6 +327,7 @@ class QueryService:
             value_es_repository=self.value_es_repository,
             meta_mysql_repository=self.meta_mysql_repository,
             dw_mysql_repository=self.dw_mysql_repository,
+            write_audit_log_repository=self.write_audit_log_repository,
         )
         # 每次问数一个独立线程 id，用于写操作审批的暂停与恢复
         thread_id = _make_id()
@@ -392,6 +400,7 @@ class QueryService:
             "sql": None,
             "result_summary": None,
             "error": None,
+            "audit_log_id": None,
         }
         context = DataAgentContext(
             column_qdrant_repository=self.column_qdrant_repository,
@@ -400,6 +409,7 @@ class QueryService:
             value_es_repository=self.value_es_repository,
             meta_mysql_repository=self.meta_mysql_repository,
             dw_mysql_repository=self.dw_mysql_repository,
+            write_audit_log_repository=self.write_audit_log_repository,
         )
         config = {"configurable": {"thread_id": thread_id}}
         resume_value = True if action == "approve" else False
@@ -506,6 +516,9 @@ class QueryService:
         elif ctype == "result":
             data = chunk.get("data") or []
             assistant["sql"] = chunk.get("sql")
+            # 写操作执行成功且审计落库后，记录 audit_log_id，供消息落库时挂接回滚入口
+            if chunk.get("audit_log_id"):
+                assistant["audit_log_id"] = chunk["audit_log_id"]
             if isinstance(data, list):
                 if data and isinstance(data[0], dict) and "数据" in data[0]:
                     # 多表结构（表元数据快捷查询 / INSERT 结果区展示目标表）
@@ -538,6 +551,7 @@ class QueryService:
                 sql=assistant["sql"],
                 result_summary=assistant["result_summary"],
                 error=assistant["error"],
+                audit_log_id=assistant.get("audit_log_id"),
                 created_at=_now_ms(),
             )
         )

@@ -28,4 +28,6 @@ class ChatMessageMySQL(Base):
         JSON, comment="结果摘要(前10行样例)"
     )
     error: Mapped[str | None] = mapped_column(Text, comment="错误信息")
+    # 写操作执行成功后的审计记录 id：非空时前端在消息左侧展示回滚入口
+    audit_log_id: Mapped[int | None] = mapped_column(BigInteger, comment="关联的写操作审计记录ID")
     created_at: Mapped[int | None] = mapped_column(BigInteger, comment="创建时间(epoch毫秒)")

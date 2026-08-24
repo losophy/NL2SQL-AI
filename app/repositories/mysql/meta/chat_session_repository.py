@@ -103,6 +103,7 @@ class ChatSessionRepository:
                 sql=message.sql,
                 result_summary=message.result_summary,
                 error=message.error,
+                audit_log_id=message.audit_log_id,
                 created_at=message.created_at,
             )
         )
@@ -129,5 +130,6 @@ class ChatSessionRepository:
             sql=row.sql,
             result_summary=row.result_summary,
             error=row.error,
+            audit_log_id=row.audit_log_id,
             created_at=row.created_at,
         )

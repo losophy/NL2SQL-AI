@@ -73,6 +73,7 @@ async def get_session(
                 sql=m.sql,
                 result_summary=m.result_summary,
                 error=m.error,
+                audit_log_id=m.audit_log_id,
                 created_at=m.created_at,
             )
             for m in messages

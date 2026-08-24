@@ -22,3 +22,5 @@ class ChatMessage:
     sql: str | None = field(default=None)
     result_summary: list | None = field(default=None)
     error: str | None = field(default=None)
+    # 写操作执行成功后的审计记录 id：非空时前端在消息左侧展示回滚入口
+    audit_log_id: int | None = field(default=None)

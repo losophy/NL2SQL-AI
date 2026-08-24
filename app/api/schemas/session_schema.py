@@ -32,6 +32,7 @@ class MessageOut(BaseModel):
     sql: str | None = None
     result_summary: list | None = None
     error: str | None = None
+    audit_log_id: int | None = None
     created_at: int
 
 

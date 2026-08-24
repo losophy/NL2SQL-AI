@@ -5,7 +5,9 @@ SQL 执行节点
 它是当前 SQL 闭环的结束节点，执行完成后流程进入 END。
 """
 
+import datetime as _dt
 import re
+from decimal import Decimal
 
 from langgraph.runtime import Runtime
 
@@ -21,6 +23,72 @@ _WRITE_TABLE_RE = {
     "update": re.compile(r"\bUPDATE\s+([`\w]+)\s+SET\b", re.IGNORECASE),
     "delete": re.compile(r"\bDELETE\s+FROM\s+([`\w]+)\b", re.IGNORECASE),
 }
+
+
+def _extract_write_table(sql: str, sql_type: str) -> str | None:
+    """从写操作 SQL 中提取目标表名；解析失败返回 None"""
+    table_re = _WRITE_TABLE_RE.get(sql_type)
+    if not table_re:
+        return None
+    match = table_re.search(sql)
+    return match.group(1).strip("`") if match else None
+
+
+def _json_safe(value):
+    """把 Decimal / datetime 等非 JSON 类型转成可落 JSON 列的值"""
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (_dt.datetime, _dt.date)):
+        return value.isoformat()
+    return value
+
+
+async def _write_audit_log(
+    runtime: Runtime[DataAgentContext],
+    state: DataAgentState,
+    sql: str,
+    sql_type: str,
+    affected: int,
+) -> int | None:
+    """写操作执行成功后落库一条审计记录（执行前快照 + SQL + 影响行数）
+
+    返回审计记录 log_id；审计仓储未注入或落库失败时返回 None，不阻断主流程。
+    """
+    repository = runtime.context.get("write_audit_log_repository")
+    if repository is None:
+        return None
+    try:
+        table = _extract_write_table(sql, sql_type)
+        if not table:
+            logger.warning("审计落库跳过：无法解析写操作目标表")
+            return None
+        session_id = state.get("session_id")
+        seq = await repository.next_seq(session_id)
+        before_data = state.get("before_data") or []
+        log_id = await repository.insert_audit_log(
+            session_id=session_id,
+            seq=seq,
+            op_type=sql_type,
+            table_name=table,
+            sql_text=sql,
+            before_data=_json_safe(before_data),
+            row_count=affected,
+        )
+        logger.info(f"写操作审计落库：log_id={log_id} seq={seq} {sql_type} {table} {affected} 行")
+        return log_id
+    except Exception as e:  # noqa: BLE001 审计失败不影响写操作主流程
+        logger.error(f"写操作审计落库失败：{e}")
+        # 落库失败会把 meta session 置为"待回滚"状态，若不清理会污染同请求后续的消息落库
+        # （报错：This Session's transaction has been rolled back due to a previous exception）
+        try:
+            await repository.session.rollback()
+        except Exception:  # noqa: BLE001 rollback 清理失败不阻断主流程
+            pass
+        return None
 
 
 async def _fetch_table_after_write(
@@ -59,9 +127,12 @@ async def run_sql(state: DataAgentState, runtime: Runtime[DataAgentContext]):
         dw_mysql_repository = runtime.context["dw_mysql_repository"]
 
         # 真实数据库访问统一封装在仓储层，节点只负责从状态取 SQL 并触发执行
+        audit_log_id: int | None = None
         if sql_type in ("insert", "update", "delete"):
             # 写操作：已通过人工审批，执行后展示受影响表的内容，而非"影响行数"
             affected = await dw_mysql_repository.run_mutation(sql)
+            # Time-Travel：执行成功后落库审计记录（含执行前快照，供后续回滚）
+            audit_log_id = await _write_audit_log(runtime, state, sql, sql_type, affected)
             result = await _fetch_table_after_write(
                 dw_mysql_repository, sql, sql_type, affected
             )
@@ -70,7 +141,9 @@ async def run_sql(state: DataAgentState, runtime: Runtime[DataAgentContext]):
         logger.info(f"SQL执行结果：{result}")
         writer({"type": "progress", "step": step, "status": "success"})
         # 把最终执行的 SQL 一并带在 result 事件里，前端可以在结果表格前展示
-        writer({"type": "result", "data": result, "sql": sql})
+        # audit_log_id 供前端在消息左侧挂接"回滚"入口（写操作成功且审计落库时非空）
+        writer({"type": "result", "data": result, "sql": sql, "audit_log_id": audit_log_id})
+        return {"audit_log_id": audit_log_id} if audit_log_id else {}
 
     except Exception as e:
         logger.error(f"{step} failed: {e}")

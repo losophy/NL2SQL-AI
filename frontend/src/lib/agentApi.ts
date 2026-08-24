@@ -4,6 +4,8 @@
  */
 import type {
   AgentEvent,
+  AuditLog,
+  RollbackResult,
   SessionDetail,
   SessionSummary,
 } from "../types/agent";
@@ -162,4 +164,35 @@ export async function deleteSession(sessionId: string): Promise<void> {
   if (!response.ok && response.status !== 404) {
     throw new Error(`删除会话失败：HTTP ${response.status}`);
   }
+}
+
+// ------------------------------------------------------------------ Time-Travel 回滚接口
+
+/** 拉取某会话的写操作审计日志（回滚列表数据源） */
+export async function listAuditLogs(sessionId: string): Promise<AuditLog[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/audit-logs?session_id=${encodeURIComponent(sessionId)}`,
+  );
+  if (!response.ok) throw new Error(`获取回滚历史失败：HTTP ${response.status}`);
+  return response.json();
+}
+
+/** 回滚目标写操作（及其之后的所有操作），返回回滚摘要 */
+export async function rollback(logId: number): Promise<RollbackResult> {
+  const response = await fetch(`${API_BASE_URL}/api/rollback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ log_id: logId }),
+  });
+  if (!response.ok) {
+    let detail = `回滚失败：HTTP ${response.status}`;
+    try {
+      const body = (await response.json()) as { detail?: string };
+      if (body.detail) detail = body.detail;
+    } catch {
+      // 非 JSON 响应保持默认错误信息
+    }
+    throw new Error(detail);
+  }
+  return response.json();
 }
