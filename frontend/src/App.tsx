@@ -1,6 +1,6 @@
 /**
  * 前端应用主组件
- * 负责聊天会话状态、SSE 事件消费和整体页面布局
+ * 负责聊天会话状态、SSE 事件消费、会话历史持久化和整体页面布局
  */
 import {
   Activity,
@@ -14,9 +14,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Composer } from "./components/Composer";
 import { EmptyState } from "./components/EmptyState";
 import { MessageBubble } from "./components/MessageBubble";
-import { streamQuery } from "./lib/agentApi";
+import { SessionList } from "./components/SessionList";
+import {
+  createSession,
+  deleteSession,
+  getSession,
+  listSessions,
+  streamQuery,
+} from "./lib/agentApi";
 import { cn, summarizeResult } from "./lib/format";
-import type { AgentEvent, ChatMessage, StepState } from "./types/agent";
+import type { AgentEvent, ChatMessage, SessionSummary, StepState } from "./types/agent";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "Vite /api proxy";
 
@@ -38,6 +45,8 @@ export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [activeController, setActiveController] = useState<AbortController | null>(null);
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const isStreaming = Boolean(activeController);
@@ -55,9 +64,91 @@ export default function App() {
     });
   }, [messages]);
 
+  useEffect(() => {
+    void refreshSessions();
+    // 挂载时加载一次会话列表即可
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function refreshSessions() {
+    try {
+      const list = await listSessions();
+      setSessions(list);
+    } catch {
+      // 列表刷新失败不影响主流程
+    }
+  }
+
+  const startNewSession = async () => {
+    if (isStreaming) return;
+    setMessages([]);
+    setDraft("");
+    try {
+      const created = await createSession();
+      setActiveSessionId(created.id);
+      setSessions((current) => [created, ...current]);
+    } catch {
+      setActiveSessionId(null);
+    }
+  };
+
+  const selectSession = async (sessionId: string) => {
+    if (isStreaming) return;
+    try {
+      const detail = await getSession(sessionId);
+      setActiveSessionId(sessionId);
+      setDraft("");
+      setMessages(
+        detail.messages.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          createdAt: m.created_at,
+          status: m.role === "assistant" ? (m.error ? "error" : "done") : undefined,
+          steps: m.steps
+            ? m.steps.map((step) => ({ ...step, updatedAt: m.created_at }))
+            : undefined,
+          result: m.result_summary ?? undefined,
+          sql: m.sql ?? undefined,
+          error: m.error ?? undefined,
+        })),
+      );
+    } catch {
+      // 详情加载失败保持现状
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (isStreaming) return;
+    try {
+      await deleteSession(sessionId);
+      setSessions((current) => current.filter((item) => item.id !== sessionId));
+      if (activeSessionId === sessionId) {
+        setActiveSessionId(null);
+        setMessages([]);
+        setDraft("");
+      }
+    } catch {
+      // 删除失败忽略
+    }
+  };
+
   const startQuery = async (rawQuery = draft) => {
     const query = rawQuery.trim();
     if (!query || isStreaming) return;
+
+    // 确保存在会话：没有活跃会话时先创建一个
+    let sessionId: string | undefined = activeSessionId ?? undefined;
+    if (!sessionId) {
+      try {
+        const created = await createSession();
+        sessionId = created.id;
+        setActiveSessionId(sessionId);
+        setSessions((current) => [created, ...current]);
+      } catch {
+        // 创建失败不阻塞问数（后端兜底会在流尾回传 session_created）
+      }
+    }
 
     const userMessage: ChatMessage = {
       id: makeId(),
@@ -85,6 +176,11 @@ export default function App() {
       setMessages((current) =>
         current.map((message) => {
           if (message.id !== assistantId) return message;
+
+          if (event.type === "session_created") {
+            setActiveSessionId(event.session_id);
+            return message;
+          }
 
           if (event.type === "progress") {
             return {
@@ -115,7 +211,11 @@ export default function App() {
     };
 
     try {
-      await streamQuery(query, { signal: controller.signal, onEvent });
+      await streamQuery(query, {
+        signal: controller.signal,
+        sessionId,
+        onEvent,
+      });
       setMessages((current) =>
         current.map((message) =>
           message.id === assistantId && message.status === "streaming"
@@ -139,17 +239,13 @@ export default function App() {
       );
     } finally {
       setActiveController(null);
+      // 问数结束后刷新列表（标题/更新时间可能变化）
+      void refreshSessions();
     }
   };
 
   const stopQuery = () => {
     activeController?.abort();
-  };
-
-  const clearConversation = () => {
-    if (isStreaming) return;
-    setMessages([]);
-    setDraft("");
   };
 
   return (
@@ -174,13 +270,21 @@ export default function App() {
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
             <button
               type="button"
-              onClick={clearConversation}
+              onClick={() => void startNewSession()}
               disabled={isStreaming}
               className="flex h-11 w-full items-center justify-center gap-2 bg-ink text-sm font-semibold text-parchment transition hover:bg-soot disabled:cursor-not-allowed disabled:bg-ink/35"
             >
               <MessageSquarePlus className="h-4 w-4" aria-hidden="true" />
               新会话
             </button>
+
+            <SessionList
+              sessions={sessions}
+              activeId={activeSessionId}
+              disabled={isStreaming}
+              onSelect={(id) => void selectSession(id)}
+              onDelete={(id) => void handleDeleteSession(id)}
+            />
           </div>
 
           <div className="border-t border-ink/10 p-4">
@@ -216,13 +320,13 @@ export default function App() {
             </div>
             <button
               type="button"
-              onClick={clearConversation}
-              disabled={messages.length === 0 || isStreaming}
+              onClick={() => void startNewSession()}
+              disabled={isStreaming}
               className={cn(
                 "grid h-9 w-9 place-items-center rounded-full text-ink/55 transition hover:bg-ink/5 hover:text-ink disabled:cursor-not-allowed disabled:opacity-35",
               )}
-              title="清空"
-              aria-label="清空"
+              title="新建会话"
+              aria-label="新建会话"
             >
               <Eraser className="h-4 w-4" aria-hidden="true" />
             </button>

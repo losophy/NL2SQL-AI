@@ -46,3 +46,27 @@ CREATE TABLE column_metric
     metric_id VARCHAR(64) COMMENT '指标编号',
     PRIMARY KEY (column_id, metric_id)
 );
+
+DROP TABLE IF EXISTS chat_session;
+CREATE TABLE chat_session
+(
+    id         VARCHAR(64) PRIMARY KEY COMMENT '会话id(UUID字符串)',
+    title      VARCHAR(255) COMMENT '会话标题(首条用户消息截断30字)',
+    created_at BIGINT COMMENT '创建时间(epoch毫秒)',
+    updated_at BIGINT COMMENT '更新时间(epoch毫秒)'
+);
+
+DROP TABLE IF EXISTS chat_message;
+CREATE TABLE chat_message
+(
+    id             VARCHAR(64) PRIMARY KEY COMMENT '消息id(UUID字符串)',
+    session_id     VARCHAR(64) COMMENT '所属会话id',
+    role           VARCHAR(16) COMMENT 'user/assistant',
+    content        TEXT COMMENT '文本内容(assistant为摘要文本)',
+    steps          JSON COMMENT 'assistant执行步骤进度',
+    `sql`          TEXT COMMENT '最终执行的SQL',
+    result_summary JSON COMMENT '结果摘要(前10行样例)',
+    error          TEXT COMMENT '错误信息',
+    created_at     BIGINT COMMENT '创建时间(epoch毫秒)',
+    INDEX idx_msg_session_created (session_id, created_at)
+);

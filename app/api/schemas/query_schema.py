@@ -13,3 +13,5 @@ class QuerySchema(BaseModel):
 
     # 前端请求体中的 query 字段，例如 {"query": "统计华北地区销售额"}
     query: str
+    # 可选的会话 id：传了则本次问数记录归属到该会话，未传时后端自动创建
+    session_id: str | None = None

@@ -2,12 +2,18 @@
  * 智能体接口客户端
  * 封装后端 /api/query SSE 流式接口请求与事件解析逻辑
  */
-import type { AgentEvent } from "../types/agent";
+import type {
+  AgentEvent,
+  SessionDetail,
+  SessionSummary,
+} from "../types/agent";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "";
 
 type QueryOptions = {
   signal?: AbortSignal;
+  /** 会话 id：传了则本次问数记录归属到该会话 */
+  sessionId?: string;
   onEvent: (event: AgentEvent) => void;
 };
 
@@ -18,7 +24,7 @@ export async function streamQuery(query: string, options: QueryOptions) {
       "Content-Type": "application/json",
       Accept: "text/event-stream",
     },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({ query, session_id: options.sessionId }),
     signal: options.signal,
   });
 
@@ -74,5 +80,34 @@ function parseSseChunk(chunk: string): AgentEvent | null {
       type: "error",
       message: `无法解析后端事件：${payload}`,
     };
+  }
+}
+
+// ------------------------------------------------------------------ 会话历史接口
+
+export async function listSessions(): Promise<SessionSummary[]> {
+  const response = await fetch(`${API_BASE_URL}/api/sessions`);
+  if (!response.ok) throw new Error(`获取会话列表失败：HTTP ${response.status}`);
+  return response.json();
+}
+
+export async function createSession(): Promise<SessionSummary> {
+  const response = await fetch(`${API_BASE_URL}/api/sessions`, { method: "POST" });
+  if (!response.ok) throw new Error(`创建会话失败：HTTP ${response.status}`);
+  return response.json();
+}
+
+export async function getSession(sessionId: string): Promise<SessionDetail> {
+  const response = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}`);
+  if (!response.ok) throw new Error(`获取会话详情失败：HTTP ${response.status}`);
+  return response.json();
+}
+
+export async function deleteSession(sessionId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`删除会话失败：HTTP ${response.status}`);
   }
 }

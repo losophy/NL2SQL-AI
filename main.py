@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request
 
 from app.api.lifespan import lifespan
 from app.api.routers.query_router import query_router
+from app.api.routers.session_router import session_router
 from app.core.context import request_id_ctx_var
 
 # lifespan 交给 FastAPI 管理，用于在服务启动和关闭时统一初始化与释放外部客户端
@@ -19,6 +20,8 @@ app = FastAPI(lifespan=lifespan)
 
 # 把查询路由注册进应用；没有挂载时，/docs 和真实 HTTP 请求都访问不到该接口
 app.include_router(query_router)
+# 会话历史接口：创建 列表 详情与删除
+app.include_router(session_router)
 
 
 @app.middleware("http")
