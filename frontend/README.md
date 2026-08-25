@@ -3,9 +3,9 @@
   记录启动方式、代理配置和部署时的环境变量
 -->
 
-# Shopkeeper Agent Frontend
+# NL2SQL AI Frontend
 
-匹配后端 `shopkeeper-agent` 的数据操作聊天前端，技术栈为 React + Vite + Tailwind CSS + pnpm。
+匹配后端 `NL2SQL-AI` 的数据操作聊天前端，技术栈为 React + Vite + Tailwind CSS + pnpm。
 
 ## 启动
 
