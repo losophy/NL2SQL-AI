@@ -1,7 +1,7 @@
 <div align='center'>
-  <h1 style="margin-top: 15px;">「游戏问数」智能数据分析 Agent</h1>
-  <h4><b>NL2SQL-Agent</b></h4>
-  <p><em>一个关于自然语言查询转换为SQL查询的智能问数实战项目，支持混合检索、多阶段推理、SQL 生成与执行全链路</em></p>
+  <h1 style="margin-top: 15px;">自然语言转SQL Agent</h1>
+  <h4><b>NL2SQL-AI</b></h4>
+  <p><em>一个关于自然语言转换为 SQL 的智能数据表操作实战项目，支持混合检索、多阶段推理、SQL 生成与执行全链路</em></p>
 </div>
 
 <div align='center'>
@@ -17,29 +17,29 @@
 
 
 
-游戏问数不是只调用一次大模型接口，也不是写几个 Prompt 演示 SQL 生成结果。这个项目围绕游戏数仓问数场景，先构建元数据知识库，再做字段、指标、字段取值的混合检索，随后用 LangGraph 编排多阶段问数流程，完成 SQL 生成、校验、修正、执行和前端流式展示。换句话说，这不是某一个框架 API，而是一条 AI 应用从数据准备、检索增强、智能体编排、接口交付到前端联调的完整项目主线。
+自然语言转 SQL Agent 不是只调用一次大模型接口，也不是写几个 Prompt 演示 SQL 生成结果。这个项目围绕通用数据表操作场景，先构建元数据知识库，再做字段、指标、字段取值的混合检索，随后用 LangGraph 编排多阶段数据操作流程，完成 SQL 生成、校验、修正、执行和前端流式展示。换句话说，这不是某一个框架 API，而是一条 AI 应用从数据准备、检索增强、智能体编排、接口交付到前端联调的完整项目主线。
 
 
 
-![游戏问数前端首页：样例问题、自然语言输入和智能数据分析 Agent 界面](docs/images/NL2SQL-Agent-home.png)
+![自然语言转 SQL Agent 前端首页：自然语言输入和智能数据分析 Agent 界面](docs/images/NL2SQL-Agent-home.png)
 
 ## 📖 项目介绍
 
-在真实问数场景里，业务同学通常不会写 SQL，数据分析同学也很难随时记住所有表结构、字段含义、指标口径和字段取值。单纯把自然语言问题直接交给大模型，很容易出现表选错、字段选错、指标理解错和 SQL 幻觉等问题。
+在真实数据操作场景里，业务同学通常不会写 SQL，数据分析同学也很难随时记住所有表结构、字段含义、指标口径和字段取值。单纯把自然语言问题直接交给大模型，很容易出现表选错、字段选错、指标理解错和 SQL 幻觉等问题。
 
-`游戏问数` 要解决的就是这个问题：
+`自然语言转 SQL Agent` 要解决的就是这个问题：
 
 - 用户用自然语言提问
 - 系统自动召回相关字段、指标和字段取值
 - 大模型基于上下文进行分步推理
-- 生成 SQL 并查询数据仓库
-- 以流式方式返回分析结果
+- 生成增删查改 SQL（SELECT 查询 / INSERT 新增 / UPDATE 修改 / DELETE 删除）
+- 查询操作流式返回结果；写操作（增删改）先人工审批、后执行，并支持一键回滚
 
 ## ✨ 项目亮点
 
 - **检索 + 推理 + 生成，而不是模型直出 SQL**
     - 先围绕问题召回相关字段、指标和值域，再组织上下文生成 SQL，整体链路更稳、更可控。
-- **面向企业问数场景的混合检索**
+- **面向企业数据操作场景的混合检索**
     - `Qdrant` 负责字段和指标的语义召回。
     - `Elasticsearch` 负责字段取值的全文检索。
     - `MySQL` 负责保存完整、权威的结构化元数据。
@@ -60,25 +60,25 @@
 
 | 主线             | 做什么                                                                   | 涉及模块                                     |
 | ---------------- | ------------------------------------------------------------------------ | -------------------------------------------- |
-| 元数据知识库构建 | 抽取游戏数仓中的表、字段、指标和字段取值，写入结构化库、向量库和全文索引 | `MySQL` / `Qdrant` / `Elasticsearch` / `TEI` |
-| 自然语言问数     | 基于用户问题完成召回、上下文整理、SQL 生成校验执行，并把过程流式返回前端 | `LangGraph` / `FastAPI` / `SSE` / `React`    |
+| 元数据知识库构建 | 抽取数仓中的表、字段、指标和字段取值，写入结构化库、向量库和全文索引 | `MySQL` / `Qdrant` / `Elasticsearch` / `TEI` |
+| 自然语言数据操作 | 基于用户问题完成召回、上下文整理、SQL 生成校验执行，并把过程流式返回前端 | `LangGraph` / `FastAPI` / `SSE` / `React`    |
 
-![游戏问数查询结果页：LangGraph 执行流程、SQL 校验执行和查询结果表格](docs/images/NL2SQL-Agent-query-result.png)
+![自然语言转 SQL Agent 查询结果页：LangGraph 执行流程、SQL 校验执行和查询结果表格](docs/images/NL2SQL-Agent-query-result.png)
 
 ## 🛠️ 项目技术栈
 
 | 模块       | 技术                              | 作用                                           |
 | ---------- | --------------------------------- | ---------------------------------------------- |
-| 游戏数仓   | `MySQL`                           | 模拟事实表、维度表和分析型查询环境             |
+| 业务数仓   | `MySQL`                           | 模拟事实表、维度表和分析型查询环境             |
 | 元数据库   | `MySQL` / `SQLAlchemy`            | 保存表、字段、指标、字段指标关系等结构化元数据 |
 | 向量检索   | `Qdrant`                          | 保存字段和指标向量，支持语义召回               |
 | 全文检索   | `Elasticsearch`                   | 保存字段真实取值，支持关键词和值域检索         |
 | Embedding  | `TEI` / `BAAI/bge-large-zh-v1.5`  | 将字段、指标、问题等文本转成向量               |
-| 智能体编排 | `LangGraph`                       | 组织多阶段问数工作流                           |
+| 智能体编排 | `LangGraph`                       | 组织多阶段数据操作工作流                     |
 | 模型接入   | `LangChain`                       | 封装 LLM 与 Embedding 调用                     |
-| 后端接口   | `FastAPI`                         | 提供问数 API、依赖注入和生命周期管理           |
+| 后端接口   | `FastAPI`                         | 提供数据操作 API、依赖注入和生命周期管理       |
 | 流式协议   | `SSE`                             | 实时返回节点进度、查询结果和错误消息           |
-| 前端       | `React` / `Vite` / `Tailwind CSS` | 提供聊天式问数界面和流程展示                   |
+| 前端       | `React` / `Vite` / `Tailwind CSS` | 提供聊天式数据操作界面和流程展示             |
 | 日志追踪   | `ContextVar` / `loguru`           | 为并发请求注入 request_id，便于排查链路        |
 | 依赖管理   | `uv` / `pnpm`                     | 管理 Python 后端和前端依赖                     |
 
@@ -97,7 +97,7 @@ NL2SQL-Agent/
 │   ├── prompt/           # Prompt 加载工具
 │   ├── repositories/     # MySQL、Qdrant、Elasticsearch 数据访问层
 │   ├── scripts/          # 元数据知识库构建脚本
-│   └── services/         # 元数据构建、问数查询、会话与 Time-Travel 回滚服务
+│   └── services/         # 元数据构建、数据操作查询、会话与 Time-Travel 回滚服务
 ├── conf/                 # app_config.yaml、meta_config.yaml
 ├── docker/               # Docker Compose、MySQL 初始化 SQL、ES 插件、Embedding 挂载目录
 ├── frontend/             # React + Vite + Tailwind CSS 前端项目
@@ -181,7 +181,7 @@ docker compose -f docker/docker-compose.yaml up -d
 | Qdrant        | `6333` |
 | Embedding     | `8081` |
 
-> `docker/mysql/meta.sql` 和 `docker/mysql/dw.sql` 会在 MySQL 容器首次启动时自动初始化元数据库和游戏数仓。meta 库包含元数据表（表/字段/指标）、会话与消息表，以及写操作审计表 `write_audit_log`（Time-Travel 回滚的数据源）。
+> `docker/mysql/meta.sql` 和 `docker/mysql/dw.sql` 会在 MySQL 容器首次启动时自动初始化元数据库和业务数仓。meta 库包含元数据表（表/字段/指标）、会话与消息表，以及写操作审计表 `write_audit_log`（Time-Travel 回滚的数据源）。
 
 ### 7. 构建元数据知识库
 
@@ -200,7 +200,7 @@ uv run fastapi dev main.py
 后端接口：
 
 ```text
-POST   /api/query             # 问数（SSE 流式返回节点进度与结果）
+POST   /api/query             # 数据操作（SSE 流式返回节点进度与结果）
 POST   /api/human-feedback    # 写操作人工审批续流（approve 确认 / reject 取消）
 GET    /api/sessions          # 会话历史列表
 POST   /api/sessions          # 创建会话
@@ -210,7 +210,7 @@ GET    /api/audit-logs        # 写操作审计日志（回滚列表）
 POST   /api/rollback          # 回滚写操作（LIFO 逆序，连带还原之后的操作）
 ```
 
-问数请求示例：
+数据操作请求示例：
 
 ```json
 {
