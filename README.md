@@ -9,7 +9,7 @@
 ![AI](https://img.shields.io/badge/AI-Agent-00c853?style=flat)
 ![Python](https://img.shields.io/badge/Python-3.14-3776AB.svg?logo=python&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/LangGraph-Agentic%20Workflow-1C3C3C.svg)
-![Stars](https://img.shields.io/github/stars/losophy/NL2SQL-Agent?logo=github&style=flat)
+![Stars](https://img.shields.io/github/stars/losophy/NL2SQL-AI?logo=github&style=flat)
 
 </div>
 
@@ -85,7 +85,7 @@
 ## 📁 项目结构
 
 ```text
-NL2SQL-Agent/
+NL2SQL-AI/
 ├── app/
 │   ├── agent/            # LangGraph 图、状态、上下文和各类节点
 │   ├── api/              # FastAPI 路由、依赖注入、生命周期和请求结构
@@ -120,8 +120,8 @@ NL2SQL-Agent/
 ### 2. 克隆项目
 
 ```bash
-git clone https://github.com/losophy/NL2SQL-Agent.git
-cd NL2SQL-Agent
+git clone -b nl2sql https://github.com/losophy/NL2SQL-AI.git
+cd NL2SQL-AI
 ```
 
 ### 3. 安装后端依赖
