@@ -84,6 +84,7 @@ class DataAgentState(TypedDict):
     pk_note: str  # INSERT 主键预检说明（如"主键 C011 已被占用，已自动分配 C021"）
     human_action: str  # 人工审批结果：approve / reject
     conversation_id: str  # 线程 id，用于 interrupt 暂停与恢复
+    blocked_reason: str  # 写操作安全拦截原因（estimate_impact 检测到疑似全表操作时写入；非空则跳过人工审批直接取消）
 
     # ---- Time-Travel 回滚相关 ----
     session_id: str | None  # 所属会话 id（由 query_service 入口写入，用于审计日志归属）

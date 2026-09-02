@@ -130,6 +130,8 @@ cd NL2SQL-AI
 uv sync
 ```
 
+`uv sync` 会在项目内创建 `.venv` 虚拟环境并安装依赖（uv 默认布局）。后续所有命令均通过 `uv run` 在虚拟环境中执行。
+
 ### 4. 配置大模型 API Key
 
 ```bash

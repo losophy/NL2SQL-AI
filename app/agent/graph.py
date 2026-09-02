@@ -114,7 +114,16 @@ graph_builder.add_conditional_edges(
     },
 )
 graph_builder.add_edge("resolve_insert_primary_key", "estimate_impact")
-graph_builder.add_edge("estimate_impact", "wait_for_human_input")
+
+# 写操作安全校验：estimate_impact 检测到疑似全表操作（无 WHERE / 恒真 WHERE / 命中全表）
+# 时写入 blocked_reason，直接走 cancel_write 取消，不进人工审批
+graph_builder.add_conditional_edges(
+    source="estimate_impact",
+    path=lambda state: (
+        "cancel_write" if state.get("blocked_reason") else "wait_for_human_input"
+    ),
+    path_map={"cancel_write": "cancel_write", "wait_for_human_input": "wait_for_human_input"},
+)
 
 # 人工审批：确认则执行，取消则不执行不重新生成（直接结束流程）
 graph_builder.add_conditional_edges(

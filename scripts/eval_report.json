@@ -1,0 +1,602 @@
+[
+  {
+    "id": "S01",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT * FROM dim_player WHERE gender = '男'",
+    "note": "行集一致",
+    "status": "pass"
+  },
+  {
+    "id": "S02",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT DISTINCT player_name FROM dim_player WHERE gender = '女'",
+    "note": "列语义对齐后行集一致（player_name↔player_name）",
+    "status": "pass"
+  },
+  {
+    "id": "S03",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT COUNT(*) AS VIP15玩家数量 FROM dim_player WHERE vip_level = 'VIP15';",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S04",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT player_name, player_id, vip_level, gender FROM dim_player WHERE player_name = '星瞳'",
+    "note": "行集一致",
+    "status": "pass"
+  },
+  {
+    "id": "S05",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT DISTINCT server_name FROM dim_server WHERE channel_type = '官方渠道';",
+    "note": "列语义对齐后行集一致（server_name↔server_name）",
+    "status": "pass"
+  },
+  {
+    "id": "S06",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT COUNT(DISTINCT item_category) AS 道具品类数量 FROM dim_item;",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S07",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT DISTINCT item_name FROM dim_item WHERE item_category = '礼包'",
+    "note": "列语义对齐后行集一致（item_name↔item_name）",
+    "status": "pass"
+  },
+  {
+    "id": "S08",
+    "kind": "meta",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SHOW TABLES;\nSELECT * FROM `dim_date`;\nSELECT * FROM `dim_item`;\nSELECT * FROM `dim_player`;\nSELECT * FROM `dim_server`;\nSELECT * FROM `fact_recharge`;",
+    "note": "表清单匹配：✓ dim_date、dim_item、dim_player、dim_server、fact_recharge",
+    "status": "pass"
+  },
+  {
+    "id": "S09",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT DISTINCT player_id FROM dim_player ORDER BY player_id ASC LIMIT 5;",
+    "note": "列语义对齐后行集一致（player_id↔player_id）",
+    "status": "pass"
+  },
+  {
+    "id": "S10",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT SUM(recharge_amount) AS 充值总流水 FROM fact_recharge;",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S11",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT COUNT(recharge_id) AS 付费笔数 FROM fact_recharge;",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S12",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT SUM(quantity) AS 销售件数 FROM fact_recharge;",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S13",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT SUM(recharge_amount) / COUNT(*) AS 平均每笔充值金额 FROM fact_recharge;",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S14",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT ds.server_name AS 服务器名称, SUM(fr.recharge_amount) AS 充值总额 FROM fact_recharge fr JOIN dim_server ds ON fr.server_id = ds.server_id GROUP BY ds.server_name;",
+    "note": "列语义对齐后行集一致（充值总额↔total；服务器名称↔server_name）",
+    "status": "pass"
+  },
+  {
+    "id": "S15",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT ds.server_name AS 服务器名称, SUM(fr.recharge_amount) AS 充值总额\nFROM fact_recharge fr\nJOIN dim_server ds ON fr.server_id = ds.server_id\nGROUP BY ds.server_name\nORDER BY 充值总额 DESC;",
+    "note": "列语义对齐后行集一致（充值总额↔total；服务器名称↔server_name）",
+    "status": "pass"
+  },
+  {
+    "id": "S16",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT ds.channel_type AS 渠道, SUM(fr.recharge_amount) AS 充值总额 FROM fact_recharge fr JOIN dim_server ds ON fr.server_id = ds.server_id GROUP BY ds.channel_type;",
+    "note": "列语义对齐后行集一致（充值总额↔SUM(f.recharge_amount)；渠道↔channel_type）",
+    "status": "pass"
+  },
+  {
+    "id": "S17",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT vip_level AS `VIP等级`, COUNT(*) AS `玩家数量` FROM dim_player GROUP BY vip_level;",
+    "note": "列语义对齐后行集一致（VIP等级↔vip_level；玩家数量↔cnt）",
+    "status": "pass"
+  },
+  {
+    "id": "S18",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT ds.region AS 大区, SUM(fr.recharge_amount) AS 充值流水 FROM fact_recharge fr JOIN dim_server ds ON fr.server_id = ds.server_id WHERE ds.region IN ('华东', '华南', '华北', '西南') GROUP BY ds.region;",
+    "note": "列语义对齐后行集一致（充值流水↔SUM(f.recharge_amount)；大区↔region）",
+    "status": "pass"
+  },
+  {
+    "id": "S19",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT dp.player_id, dp.player_name, SUM(fr.recharge_amount) AS 累计充值金额\nFROM fact_recharge fr\nJOIN dim_player dp ON fr.player_id = dp.player_id\nGROUP BY dp.player_id, dp.player_name\nORDER BY 累计充值金额 DESC\nLIMIT 5;",
+    "note": "列语义对齐后行集一致（player_id↔player_id；player_name↔player_name；累计充值金额↔total）",
+    "status": "pass"
+  },
+  {
+    "id": "S20",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT recharge_id, recharge_amount FROM fact_recharge ORDER BY recharge_amount DESC LIMIT 1;",
+    "note": "列语义对齐后行集一致（recharge_amount↔recharge_amount；recharge_id↔recharge_id）",
+    "status": "pass"
+  },
+  {
+    "id": "S21",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT SUM(quantity) / COUNT(recharge_id) AS 平均每笔充值购买件数 FROM fact_recharge;",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S22",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT SUM(fact_recharge.recharge_amount) AS 充值流水 FROM fact_recharge JOIN dim_date ON fact_recharge.date_id = dim_date.date_id WHERE dim_date.date_id BETWEEN 20250201 AND 20250228;",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S23",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT COUNT(recharge_id) AS 付费笔数 FROM fact_recharge WHERE date_id BETWEEN 20250101 AND 20250110;",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S24",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT d.month, SUM(f.recharge_amount) AS 充值流水\nFROM fact_recharge f\nJOIN dim_date d ON f.date_id = d.date_id\nWHERE d.quarter = 'Q1'\nGROUP BY d.month\nORDER BY d.month;",
+    "note": "列语义对齐后行集一致（month↔month；充值流水↔SUM(f.recharge_amount)）",
+    "status": "pass"
+  },
+  {
+    "id": "S25",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT COUNT(*) AS 付费笔数, SUM(recharge_amount) AS 充值流水 FROM fact_recharge WHERE date_id = 20250331;",
+    "note": "列语义对齐后行集一致（付费笔数↔COUNT(*)；充值流水↔SUM(recharge_amount)）",
+    "status": "pass"
+  },
+  {
+    "id": "S26",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT COUNT(recharge_id) AS 付费笔数 FROM fact_recharge WHERE date_id > 20250315;",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S27",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT COUNT(*) AS 充值笔数 FROM fact_recharge WHERE recharge_amount BETWEEN 100.0 AND 200.0;",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S28",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT COUNT(*) AS 单笔购买5件及以上记录数 FROM fact_recharge WHERE quantity >= 5;",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S29",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT DISTINCT di.item_name\nFROM fact_recharge fr\nJOIN dim_player dp ON fr.player_id = dp.player_id\nJOIN dim_item di ON fr.item_id = di.item_id\nWHERE dp.player_name = '苏苏';",
+    "note": "行集一致",
+    "status": "pass"
+  },
+  {
+    "id": "S30",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT SUM(fr.recharge_amount) AS 总销售额\nFROM fact_recharge fr\nJOIN dim_item di ON fr.item_id = di.item_id\nWHERE di.item_category = '皮肤';",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S31",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT di.item_category AS 道具品类, SUM(fr.quantity) AS 销售件数\nFROM fact_recharge fr\nJOIN dim_item di ON fr.item_id = di.item_id\nGROUP BY di.item_category;",
+    "note": "列语义对齐后行集一致（道具品类↔item_category；销售件数↔SUM(f.quantity)）",
+    "status": "pass"
+  },
+  {
+    "id": "S32",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT dp.player_name AS 玩家名称, COUNT(fr.player_id) AS 充值次数\nFROM fact_recharge fr\nJOIN dim_player dp ON fr.player_id = dp.player_id\nGROUP BY fr.player_id, dp.player_name\nORDER BY 充值次数 DESC\nLIMIT 1;",
+    "note": "列语义对齐后行集一致（充值次数↔cnt；玩家名称↔player_name）",
+    "status": "pass"
+  },
+  {
+    "id": "S33",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT SUM(fr.recharge_amount) AS 充值总额\nFROM fact_recharge fr\nJOIN dim_date dd ON fr.date_id = dd.date_id\nJOIN dim_server ds ON fr.server_id = ds.server_id\nWHERE dd.date_id BETWEEN 20250101 AND 20250131\n  AND ds.channel_type = '官方渠道';",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S34",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT DISTINCT dp.player_name AS 玩家昵称, fr.recharge_amount AS 金额\nFROM fact_recharge fr\nJOIN dim_player dp ON fr.player_id = dp.player_id\nJOIN dim_date dd ON fr.date_id = dd.date_id\nWHERE dd.date_id = 20250101;",
+    "note": "列语义对齐后行集一致（玩家昵称↔player_name；金额↔recharge_amount）",
+    "status": "pass"
+  },
+  {
+    "id": "S35",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT SUM(fr.quantity) AS 销售件数\nFROM fact_recharge fr\nJOIN dim_item di ON fr.item_id = di.item_id\nWHERE di.item_name = 'S1赛季通行证';",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S36",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT dp.player_name, fr.recharge_amount\nFROM fact_recharge fr\nJOIN dim_player dp ON fr.player_id = dp.player_id\nORDER BY fr.recharge_amount DESC\nLIMIT 10;",
+    "note": "列语义对齐后行集一致（player_name↔player_name；recharge_amount↔recharge_amount）",
+    "status": "pass"
+  },
+  {
+    "id": "S37",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT DISTINCT dp.player_id, dp.player_name FROM dim_player dp LEFT JOIN fact_recharge fr ON dp.player_id = fr.player_id WHERE fr.player_id IS NULL;",
+    "note": "行集一致",
+    "status": "pass"
+  },
+  {
+    "id": "S38",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT SUM(recharge_amount) AS 总流水 FROM fact_recharge;",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S39",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT SUM(fr.recharge_amount) AS 充值流水\nFROM fact_recharge fr\nJOIN dim_server ds ON fr.server_id = ds.server_id\nWHERE ds.region = '华北';",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S40",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT DISTINCT server_name FROM dim_server WHERE server_name LIKE '%荣耀%';",
+    "note": "列语义对齐后行集一致（server_name↔server_name）",
+    "status": "pass"
+  },
+  {
+    "id": "S41",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT SUM(fact_recharge.recharge_amount) AS 充值总额\nFROM fact_recharge\nJOIN dim_player ON fact_recharge.player_id = dim_player.player_id\nWHERE dim_player.vip_level = 'VIP5';",
+    "note": "单列结果值一致（列名不同已忽略）",
+    "status": "pass"
+  },
+  {
+    "id": "S42",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT DISTINCT player_name FROM dim_player WHERE gender = '女' AND vip_level = 'VIP15';",
+    "note": "列语义对齐后行集一致（player_name↔player_name）",
+    "status": "pass"
+  },
+  {
+    "id": "S43",
+    "kind": "select",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "SELECT DISTINCT player_name FROM dim_player WHERE player_name = '火星游客'",
+    "note": "行集一致",
+    "status": "pass"
+  },
+  {
+    "id": "W01",
+    "kind": "insert",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "INSERT INTO `dim_player` (player_name, gender, vip_level, player_id) VALUES ('评测侠', '男', 'VIP3', 'C021')",
+    "note": "dry-run 影响 1 行（golden 期望 1）",
+    "status": "pass"
+  },
+  {
+    "id": "W02",
+    "kind": "insert",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "INSERT INTO `fact_recharge` (player_id, server_id, item_id, date_id, quantity, recharge_amount, recharge_id) VALUES ('C001', 'S001', 'I06', 20250401, 1, 30.0, 'RC20250331004')",
+    "note": "dry-run 影响 1 行（golden 期望 1）",
+    "status": "pass"
+  },
+  {
+    "id": "W03",
+    "kind": "insert",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "INSERT INTO `dim_item` (item_name, item_category, item_id) VALUES ('评测皮肤A', '皮肤', 'I14'), ('评测礼包B', '礼包', 'I15')",
+    "note": "dry-run 影响 2 行（golden 期望 2）",
+    "status": "pass"
+  },
+  {
+    "id": "W05",
+    "kind": "heal",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "INSERT INTO `dim_player` (player_id, player_name, gender) VALUES ('C021', '新苏苏', '女')",
+    "note": "主键自愈/插入成功：dry-run 落库且目标行存在",
+    "status": "pass"
+  },
+  {
+    "id": "W06",
+    "kind": "update",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "UPDATE dim_player SET vip_level = 'VIP5' WHERE player_id = 'C001';",
+    "note": "dry-run 影响 1 行（golden 期望 1）",
+    "status": "pass"
+  },
+  {
+    "id": "W07",
+    "kind": "update",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "UPDATE dim_player SET gender = '女' WHERE vip_level = 'VIP0';",
+    "note": "dry-run 影响 2 行（golden 期望 2）",
+    "status": "pass"
+  },
+  {
+    "id": "W08",
+    "kind": "update",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "UPDATE dim_player SET player_name = '剑指长空·改名', vip_level = 'VIP9' WHERE player_id = 'C003';",
+    "note": "dry-run 影响 1 行（golden 期望 1）",
+    "status": "pass"
+  },
+  {
+    "id": "W10",
+    "kind": "delete",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "DELETE FROM dim_player WHERE player_id = 'C002';",
+    "note": "dry-run 影响 1 行（golden 期望 1）",
+    "status": "pass"
+  },
+  {
+    "id": "W11",
+    "kind": "delete",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "DELETE FROM dim_item WHERE item_category = '消耗品';",
+    "note": "dry-run 影响 3 行（golden 期望 3）",
+    "status": "pass"
+  },
+  {
+    "id": "W13",
+    "kind": "delete",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "DELETE FROM fact_recharge WHERE date_id < 20250101;",
+    "note": "dry-run 影响 0 行（golden 期望 0）",
+    "status": "pass"
+  },
+  {
+    "id": "W19",
+    "kind": "ddl",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "CREATE TABLE fact_login (login_id VARCHAR(20) PRIMARY KEY COMMENT '登录ID', player_id VARCHAR(20) COMMENT '玩家ID', date INT COMMENT '日期', login_count INT COMMENT '登录次数') CHARACTER SET utf8mb4;",
+    "note": "返回可执行 DDL：✓（Agent 不自动执行，dw 未改动）",
+    "status": "pass"
+  },
+  {
+    "id": "W20",
+    "kind": "ddl",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "DROP TABLE IF EXISTS dim_player;",
+    "note": "返回可执行 DDL：✓（Agent 不自动执行，dw 未改动）",
+    "status": "pass"
+  },
+  {
+    "id": "W04",
+    "kind": "heal",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "INSERT INTO `dim_player` (player_name, vip_level, player_id) VALUES ('无名氏', 'VIP0', 'C021')",
+    "note": "主键自愈/插入成功：dry-run 落库且目标行存在",
+    "status": "pass"
+  },
+  {
+    "id": "W09",
+    "kind": "block",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": null,
+    "note": "拦截成功：无审批卡（'未生成全表写操作'）",
+    "status": "pass"
+  },
+  {
+    "id": "W12",
+    "kind": "delete",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "DELETE FROM fact_recharge WHERE date_id BETWEEN 20250101 AND 20250131;",
+    "note": "dry-run 影响 45 行（golden 期望 45）",
+    "status": "pass"
+  },
+  {
+    "id": "W14",
+    "kind": "delete",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": "DELETE FROM dim_player WHERE player_id='Z999';",
+    "note": "dry-run 影响 0 行（golden 期望 0）",
+    "status": "pass"
+  },
+  {
+    "id": "W15",
+    "kind": "block",
+    "executable": true,
+    "consistent": true,
+    "review": false,
+    "agent_sql": null,
+    "note": "拦截成功：无审批卡（'未生成全表写操作'）",
+    "status": "pass"
+  }
+]
